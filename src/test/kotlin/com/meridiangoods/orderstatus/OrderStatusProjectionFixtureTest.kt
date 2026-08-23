@@ -1,5 +1,9 @@
 package com.meridiangoods.orderstatus
 
+import com.meridiangoods.recordpaymentresult.PaymentCaptured
+
+import com.meridiangoods.requestpayment.PaymentRequested
+
 import com.meridiangoods.placeorder.OrderLine
 import com.meridiangoods.placeorder.PlaceOrder
 import com.meridiangoods.placeorder.PlaceOrderConfiguration
@@ -67,7 +71,7 @@ class OrderStatusProjectionFixtureTest {
         awaitUntil { repository.findByOrderId(orderId) != null }
 
         fixture.given()
-            .event(PaymentRequested(UUID.randomUUID(), orderId, 4000, Instant.now()))
+            .event(PaymentRequested(orderId = orderId, paymentId = UUID.randomUUID(), amountCents = 4000, requestedAt = Instant.now()))
             .`when`()
             .nothing()
             .then()
@@ -76,7 +80,7 @@ class OrderStatusProjectionFixtureTest {
         assertEquals(OrderStatus.PAYMENT_REQUESTED, repository.findByOrderId(orderId)?.status)
 
         fixture.given()
-            .event(PaymentCaptured(UUID.randomUUID(), orderId, 4000, Instant.now(), "PROV-REF-1"))
+            .event(PaymentCaptured(paymentId = UUID.randomUUID(), orderId = orderId, amountCents = 4000, capturedAt = Instant.now(), providerRef = "PROV-REF-1"))
             .`when`()
             .nothing()
             .then()
