@@ -2,7 +2,8 @@
 schemaVersion: 1
 pattern: state-change
 swimlane: Customer → Ordering
-status: ready-to-implement
+status: implemented
+implementedIn: https://github.com/milehimikey/meridian-goods/pull/7
 version: 1
 ---
 # Slice: Place Order
