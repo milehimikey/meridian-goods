@@ -1,5 +1,7 @@
 package com.meridiangoods.openorders
 
+import com.meridiangoods.recordpaymentresult.PaymentCaptured
+
 import com.meridiangoods.placeorder.OrderLine
 import com.meridiangoods.placeorder.PlaceOrder
 import com.meridiangoods.placeorder.PlaceOrderConfiguration
@@ -67,7 +69,7 @@ class OpenOrdersProjectionFixtureTest {
 
         val capturedAt = Instant.now()
         fixture.given()
-            .event(PaymentCaptured(UUID.randomUUID(), orderId, 3000, capturedAt, "PROV-REF-1"))
+            .event(PaymentCaptured(paymentId = UUID.randomUUID(), orderId = orderId, amountCents = 3000, capturedAt = capturedAt, providerRef = "PROV-REF-1"))
             .`when`()
             .nothing()
             .then()

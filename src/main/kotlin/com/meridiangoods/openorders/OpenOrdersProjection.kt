@@ -1,5 +1,7 @@
 package com.meridiangoods.openorders
 
+import com.meridiangoods.recordpaymentresult.PaymentCaptured
+
 import com.meridiangoods.placeorder.OrderPlaced
 import org.axonframework.messaging.core.annotation.SequencingPolicy
 import org.axonframework.messaging.core.sequencing.PropertySequencingPolicy

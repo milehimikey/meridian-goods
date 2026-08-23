@@ -1,5 +1,9 @@
 package com.meridiangoods.orderstatus
 
+import com.meridiangoods.recordpaymentresult.PaymentCaptured
+
+import com.meridiangoods.requestpayment.PaymentRequested
+
 import com.meridiangoods.placeorder.OrderLine
 import com.meridiangoods.placeorder.OrderPlaced
 import org.junit.jupiter.api.BeforeEach
@@ -33,10 +37,10 @@ class OrderStatusProjectionTest {
     )
 
     private fun paymentRequested() =
-        PaymentRequested(UUID.randomUUID(), orderId, 5000, requestedAt)
+        PaymentRequested(orderId = orderId, paymentId = UUID.randomUUID(), amountCents = 5000, requestedAt = requestedAt)
 
     private fun paymentCaptured() =
-        PaymentCaptured(UUID.randomUUID(), orderId, 5000, capturedAt, "PROV-REF-1")
+        PaymentCaptured(paymentId = UUID.randomUUID(), orderId = orderId, amountCents = 5000, capturedAt = capturedAt, providerRef = "PROV-REF-1")
 
     @BeforeEach
     fun setUp() {

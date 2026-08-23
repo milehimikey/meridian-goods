@@ -1,5 +1,7 @@
 package com.meridiangoods.openorders
 
+import com.meridiangoods.recordpaymentresult.PaymentCaptured
+
 import com.meridiangoods.placeorder.OrderLine
 import com.meridiangoods.placeorder.OrderPlaced
 import org.junit.jupiter.api.BeforeEach
