@@ -91,3 +91,26 @@ slice "Order Status" {                     # State View — customer-facing, clo
   } note "slices/order-status.md"
   ui Account Page @Customer
 }
+
+slice "Cancel Order" {                     # State Change — CHANGE beat: customers self-serve cancellation
+  ui Account Page @Customer
+  command Cancel Order {
+    orderId: UUID
+    customerId: UUID
+    cancelledAt: DateTime
+  } note "slices/cancel-order.md"
+  event Order Cancelled @Ordering {
+    orderId: UUID
+    customerId: UUID
+    cancelledAt: DateTime
+  }
+}
+
+slice "Open Orders — cancelled" {          # State View — repeated view instance, does NOT connect to the earlier Open Orders
+  view Open Orders again from "Order Cancelled" {
+    orderId: UUID
+    customerId: UUID
+    cancelledAt: DateTime
+  } note "slices/open-orders-cancelled.md"
+  ui Fulfillment Dashboard @Staff
+}

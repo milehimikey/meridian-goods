@@ -39,12 +39,14 @@ never connected to one another.
 <!-- GENERATED:slices:start -->
 | # | Slice | Pattern | Status | Implemented in | Design doc |
 |---|-------|---------|--------|----------------|------------|
-| 1 | Place Order | State Change | ready-to-implement | — | [slices/place-order.md](slices/place-order.md) |
-| 2 | Payments To Request | State View | ready-to-implement | — | [slices/payments-to-request.md](slices/payments-to-request.md) |
-| 3 | Request Payment | Automation | ready-to-implement | — | [slices/request-payment.md](slices/request-payment.md) |
-| 4 | Record Payment Result | Translation | ready-to-implement | — | [slices/record-payment-result.md](slices/record-payment-result.md) |
-| 5 | Open Orders | State View | ready-to-implement | — | [slices/open-orders.md](slices/open-orders.md) |
-| 6 | Order Status | State View | ready-to-implement | — | [slices/order-status.md](slices/order-status.md) |
+| 1 | Place Order | State Change | implemented | https://github.com/milehimikey/meridian-goods/pull/7 | [slices/place-order.md](slices/place-order.md) |
+| 2 | Payments To Request | State View | implemented | https://github.com/milehimikey/meridian-goods/pull/8 | [slices/payments-to-request.md](slices/payments-to-request.md) |
+| 3 | Request Payment | Automation | implemented | https://github.com/milehimikey/meridian-goods/pull/10 | [slices/request-payment.md](slices/request-payment.md) |
+| 4 | Record Payment Result | Translation | implemented | https://github.com/milehimikey/meridian-goods/pull/12 | [slices/record-payment-result.md](slices/record-payment-result.md) |
+| 5 | Open Orders | State View | implemented | https://github.com/milehimikey/meridian-goods/pull/9 | [slices/open-orders.md](slices/open-orders.md) |
+| 6 | Order Status | State View | implemented | https://github.com/milehimikey/meridian-goods/pull/11 | [slices/order-status.md](slices/order-status.md) |
+| 7 | Cancel Order | State Change | draft | — | [slices/cancel-order.md](slices/cancel-order.md) |
+| 8 | Open Orders — cancelled | State View | draft | — | [slices/open-orders-cancelled.md](slices/open-orders-cancelled.md) |
 <!-- GENERATED:slices:end -->
 
 ## Status
