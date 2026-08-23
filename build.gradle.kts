@@ -1,8 +1,8 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "2.1.20"
-    kotlin("plugin.spring") version "2.1.20"
+    kotlin("jvm") version "2.4.10"
+    kotlin("plugin.spring") version "2.4.10"
     id("org.springframework.boot") version "3.4.1"
     id("io.spring.dependency-management") version "1.1.7"
 }
@@ -42,6 +42,12 @@ val axonBomCoordinates = "org.axonframework:axon-framework-bom:5.3.1"
 dependencies {
     implementation(platform(axonBomCoordinates))
     implementation("org.axonframework.extensions.spring:axon-spring-boot-starter")
+    // Registers KotlinReflectNullabilityResolver (via ServiceLoader) so Axon's @InjectEntity
+    // resolver recognizes a Kotlin nullable parameter (`state: State?`) as RESOLVE_NULL instead
+    // of throwing EntityNotFoundException on a not-yet-created entity — without this, a
+    // create-or-noop command handler (like Place Order's) can't express "entity may not exist
+    // yet" in Kotlin at all. See the findings file for the failure this fixes.
+    implementation("org.axonframework.extensions.kotlin:axon-kotlin")
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
