@@ -2,7 +2,8 @@
 schemaVersion: 1
 pattern: state-view
 swimlane: System → Payments
-status: ready-to-implement
+status: implemented
+implementedIn: https://github.com/milehimikey/meridian-goods/pull/8
 version: 1
 ---
 # Slice: Payments To Request
