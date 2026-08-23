@@ -2,6 +2,7 @@ package com.meridiangoods.openorders
 
 import com.meridiangoods.recordpaymentresult.PaymentCaptured
 
+import com.meridiangoods.cancelorder.OrderCancelled
 import com.meridiangoods.placeorder.OrderLine
 import com.meridiangoods.placeorder.OrderPlaced
 import org.junit.jupiter.api.BeforeEach
@@ -10,11 +11,17 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 
 /**
  * Unit tests for `Open Orders` (`slices/open-orders.md`). Every `INV-OO-n` and every scenario in
  * the doc's "Scenarios (Given / When / Then)" section is covered — see the comment on each test
  * naming the exact ID/scenario it proves.
+ *
+ * Also covers `Open Orders — cancelled` (`slices/open-orders-cancelled.md`, INV-OOC-1/
+ * INV-OOC-2) in the section below, kept in this same class rather than a separate one: it is the
+ * repeated-view fold on this exact projection/repository, not a distinct slice's own class — see
+ * [OpenOrdersProjection]'s doc comment for the placement rationale.
  */
 class OpenOrdersProjectionTest {
 
@@ -40,6 +47,14 @@ class OpenOrdersProjectionTest {
         amountCents = 5000,
         capturedAt = capturedAt,
         providerRef = "PROV-REF-1",
+    )
+
+    private val cancelledAt = Instant.parse("2026-08-20T12:00:00Z")
+
+    private fun orderCancelled() = OrderCancelled(
+        orderId = orderId,
+        customerId = customerId,
+        cancelledAt = cancelledAt,
     )
 
     @BeforeEach
@@ -123,5 +138,60 @@ class OpenOrdersProjectionTest {
         assertEquals(capturedAt, row?.capturedAt)
         assertEquals(placedAt, row?.placedAt)
         assertEquals(customerId, row?.customerId)
+    }
+
+    // === `Open Orders — cancelled` (`slices/open-orders-cancelled.md`) =========================
+    // The repeated `Open Orders` instance's removal fold, on the same read model/repository.
+
+    // --- `Order Cancelled` lands for an open order --------------------------------------------
+
+    @Test
+    fun `Order Cancelled lands for an open order - given an Open Orders row, when Order Cancelled, then the row is removed`() {
+        projection.on(orderPlaced())
+        assertNotNull(repository.findByOrderId(orderId))
+
+        projection.on(orderCancelled())
+
+        assertNull(repository.findByOrderId(orderId))
+        assertEquals(0, repository.findAll().size)
+    }
+
+    // --- INV-OOC-2: redelivered event -----------------------------------------------------------
+
+    @Test
+    fun `INV-OOC-2 - redelivered Order Cancelled after removal is a no-op, no error, no second effect`() {
+        projection.on(orderPlaced())
+        projection.on(orderCancelled())
+        assertNull(repository.findByOrderId(orderId))
+
+        projection.on(orderCancelled())
+
+        assertNull(repository.findByOrderId(orderId))
+        assertEquals(0, repository.findAll().size)
+    }
+
+    // --- Cancellation before capture reaches the board ------------------------------------------
+
+    @Test
+    fun `Cancellation before capture reaches the board - an open order with no capturedAt is removed the same way`() {
+        projection.on(orderPlaced())
+        assertNull(repository.findByOrderId(orderId)?.capturedAt)
+
+        projection.on(orderCancelled())
+
+        assertNull(repository.findByOrderId(orderId))
+    }
+
+    // --- Alternate flow: out-of-order delivery (Order Cancelled arrives before Order Placed) ----
+
+    @Test
+    fun `out-of-order delivery - Order Cancelled before Order Placed suppresses row creation`() {
+        projection.on(orderCancelled())
+        assertNull(repository.findByOrderId(orderId))
+
+        projection.on(orderPlaced())
+
+        assertNull(repository.findByOrderId(orderId))
+        assertEquals(0, repository.findAll().size)
     }
 }
