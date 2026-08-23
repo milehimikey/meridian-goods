@@ -28,6 +28,17 @@ enough context that nobody re-litigates a call already made.
   resubmit the exact same command after a timeout/dropped-connection and get the exact same
   result rather than a duplicate order. This is the walkthrough's canonical idempotency example.
 
+- **Timestamp-origin convention: every event timestamp has a same-slice origin on its command,
+  and the origin is stated honestly per field.** `Payment Captured.capturedAt` comes from the
+  provider's webhook payload (the provider is the authoritative clock for capture);
+  `Payment Requested.requestedAt` is stamped by the issuing automation (the processor authors
+  the command, so it supplies the request time); `Order Placed.placedAt` is the one genuine
+  server-clock field — it is echoed onto `Place Order` purely so the field-completeness check
+  can trace it (the API request body excludes it; see the modeling note in
+  `slices/place-order.md`). Rationale: keeps `em validate` at zero diagnostics and the
+  `--slice-ready` handoff gate green without hiding where each value truly originates. Revisit
+  if em grows a first-class system-assigned field marker.
+
 - **Cancellation is deliberately deferred to a future slice, not modeled here.** Neither
   `Open Orders` nor `Order Status` has a "cancelled" state, and there's no `Cancel Order` command
   in this base model. Rationale: the base six-slice model demonstrates the four core patterns

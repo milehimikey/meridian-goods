@@ -45,7 +45,7 @@ command at the boundary and issues it; it never records an event itself.
 | paymentId | UUID | yes | `Record Payment Result.paymentId` |
 | orderId | UUID | yes | `Record Payment Result.orderId` |
 | amountCents | Int | yes | `Record Payment Result.amountCents` |
-| capturedAt | DateTime | yes | System-assigned at command-handling time, not client input — expected `fields-completeness/event-field-no-source` warning on `em validate` (same pattern as `em`'s own bundled `order-fulfillment` example; see `docs/validation.md`). |
+| capturedAt | DateTime | yes | Carried in the provider's webhook payload — the *provider's* capture time, mapped onto `Record Payment Result.capturedAt` at the anti-corruption boundary (INV-RPR-1). Not a server echo; the provider is the authoritative source of when capture happened (see `domain-decisions.md`, timestamp-origin convention). |
 | providerRef | String | yes | `Record Payment Result.providerRef` — kept on the event (not just the command) so downstream reconciliation against the provider's own records never has to re-derive it. |
 
 ## Invariants / Business Rules

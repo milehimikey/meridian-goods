@@ -43,7 +43,7 @@ triggers does.
 | paymentId | UUID | yes | `Request Payment.paymentId` |
 | orderId | UUID | yes | `Request Payment.orderId` |
 | amountCents | Int | yes | `Request Payment.amountCents` |
-| requestedAt | DateTime | yes | System-assigned at command-handling time, not client input — expected `fields-completeness/event-field-no-source` warning on `em validate` (same pattern as `em`'s own bundled `order-fulfillment` example; see `docs/validation.md`). |
+| requestedAt | DateTime | yes | Stamped by the issuing automation: `Payment Requester` is the command's author, so it legitimately supplies the request time on `Request Payment.requestedAt` — carried on both command and event (see `domain-decisions.md`, timestamp-origin convention). |
 
 ## Invariants / Business Rules
 - **INV-RP-1 (exactly-once liveness):** At most one `Payment Requested` event is ever recorded
