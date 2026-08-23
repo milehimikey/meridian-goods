@@ -3,7 +3,7 @@ schemaVersion: 1
 pattern: state-change
 swimlane: Customer → Ordering
 status: implemented
-implementedIn: https://github.com/milehimikey/meridian-goods/pull/6
+implementedIn: https://github.com/milehimikey/meridian-goods/pull/7
 version: 1
 ---
 # Slice: Place Order
