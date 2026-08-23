@@ -2,7 +2,8 @@
 schemaVersion: 1
 pattern: translation
 swimlane: Payment Provider → Payments
-status: ready-to-implement
+status: implemented
+implementedIn: https://github.com/milehimikey/meridian-goods/pull/12
 version: 1
 ---
 # Slice: Record Payment Result
