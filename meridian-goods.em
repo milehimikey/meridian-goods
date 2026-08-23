@@ -12,19 +12,43 @@ slice "Place Order" {                      # State Change
 }
 
 slice "Payments To Request" {              # Automation's read model (consumed by next slice's processor)
-  view Payments To Request from "Order Placed"
+  view Payments To Request from "Order Placed" {
+    orderId: UUID
+    totalCents: Int
+    placedAt: DateTime
+  } note "slices/payments-to-request.md"
 }
 
 slice "Request Payment" {                  # Automation: reaction + command + event together
-  processor Payment Requester from "Payments To Request"
-  command Request Payment
-  event Payment Requested @Payments
+  processor Payment Requester from "Payments To Request" note "slices/request-payment.md"
+  command Request Payment {
+    paymentId: UUID
+    orderId: UUID
+    amountCents: Int
+  }
+  event Payment Requested @Payments {
+    paymentId: UUID
+    orderId: UUID
+    amountCents: Int
+    requestedAt: DateTime
+  }
 }
 
 slice "Record Payment Result" {            # Translation: provider webhook, externally triggered, one slice
-  translation Payment Provider Adapter
-  command Record Payment Result
-  event Payment Captured @Payments
+  translation Payment Provider Adapter note "slices/record-payment-result.md"
+  command Record Payment Result {
+    paymentId: UUID
+    orderId: UUID
+    amountCents: Int
+    providerRef: String
+  }
+  event Payment Captured @Payments {
+    paymentId: UUID
+    orderId: UUID
+    amountCents: Int
+    capturedAt: DateTime
+    providerRef: String
+  }
 }
 
 slice "Open Orders" {                      # State View — staff-facing
