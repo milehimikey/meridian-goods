@@ -1,5 +1,9 @@
 package com.meridiangoods.paymentstorequest
 
+import com.meridiangoods.recordpaymentresult.PaymentCaptured
+
+import com.meridiangoods.requestpayment.PaymentRequested
+
 import com.meridiangoods.placeorder.OrderLine
 import com.meridiangoods.placeorder.OrderPlaced
 import org.axonframework.messaging.eventhandling.annotation.EventHandler
@@ -81,7 +85,7 @@ class PaymentsToRequestProjectionTest {
         projection.on(orderPlaced())
         assertEquals(1, repository.findAll().size)
 
-        projection.on(PaymentRequested(UUID.randomUUID(), orderId, 5000, Instant.now()))
+        projection.on(PaymentRequested(orderId = orderId, paymentId = UUID.randomUUID(), amountCents = 5000, requestedAt = Instant.now()))
 
         assertNull(repository.findByOrderId(orderId))
         assertEquals(0, repository.findAll().size)
@@ -90,11 +94,11 @@ class PaymentsToRequestProjectionTest {
     @Test
     fun `INV-PTR-2 - out-of-order delivery - Payment Requested before Order Placed fold still leaves the order absent once both are folded`() {
         // Payment Requested arrives (and finds nothing to remove) before Order Placed's fold completes.
-        projection.on(PaymentRequested(UUID.randomUUID(), orderId, 5000, Instant.now()))
+        projection.on(PaymentRequested(orderId = orderId, paymentId = UUID.randomUUID(), amountCents = 5000, requestedAt = Instant.now()))
         // Order Placed's fold completes afterward.
         projection.on(orderPlaced())
         // Once the removal is (re)applied, the order must not be resurrected.
-        projection.on(PaymentRequested(UUID.randomUUID(), orderId, 5000, Instant.now()))
+        projection.on(PaymentRequested(orderId = orderId, paymentId = UUID.randomUUID(), amountCents = 5000, requestedAt = Instant.now()))
 
         assertNull(repository.findByOrderId(orderId))
     }

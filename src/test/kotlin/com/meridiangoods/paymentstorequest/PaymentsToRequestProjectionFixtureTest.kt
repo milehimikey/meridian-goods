@@ -1,5 +1,7 @@
 package com.meridiangoods.paymentstorequest
 
+import com.meridiangoods.requestpayment.PaymentRequested
+
 import com.meridiangoods.placeorder.OrderLine
 import com.meridiangoods.placeorder.PlaceOrder
 import com.meridiangoods.placeorder.PlaceOrderConfiguration
@@ -66,7 +68,7 @@ class PaymentsToRequestProjectionFixtureTest {
         assertEquals(1000, repository.findByOrderId(orderId)?.totalCents)
 
         fixture.given()
-            .event(PaymentRequested(UUID.randomUUID(), orderId, 1000, java.time.Instant.now()))
+            .event(PaymentRequested(orderId = orderId, paymentId = UUID.randomUUID(), amountCents = 1000, requestedAt = java.time.Instant.now()))
             .`when`()
             .nothing()
             .then()
