@@ -39,6 +39,12 @@ never connected to one another.
 <!-- GENERATED:slices:start -->
 | # | Slice | Pattern | Status | Implemented in | Design doc |
 |---|-------|---------|--------|----------------|------------|
+| 1 | Place Order | State Change | no doc yet | — | [slices/place-order.md](slices/place-order.md) |
+| 2 | Payments To Request | State View | no doc yet | — | [slices/payments-to-request.md](slices/payments-to-request.md) |
+| 3 | Request Payment | Automation | no doc yet | — | [slices/request-payment.md](slices/request-payment.md) |
+| 4 | Record Payment Result | Translation | no doc yet | — | [slices/record-payment-result.md](slices/record-payment-result.md) |
+| 5 | Open Orders | State View | no doc yet | — | [slices/open-orders.md](slices/open-orders.md) |
+| 6 | Order Status | State View | no doc yet | — | [slices/order-status.md](slices/order-status.md) |
 <!-- GENERATED:slices:end -->
 
 ## Status
