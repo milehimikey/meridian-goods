@@ -43,6 +43,7 @@ slice "Request Payment" {                  # Automation: reaction + command + ev
     paymentId: UUID
     orderId: UUID
     amountCents: Int
+    requestedAt: DateTime
   }
   event Payment Requested @Payments {
     paymentId: UUID
@@ -58,6 +59,7 @@ slice "Record Payment Result" {            # Translation: provider webhook, exte
     paymentId: UUID
     orderId: UUID
     amountCents: Int
+    capturedAt: DateTime
     providerRef: String
   }
   event Payment Captured @Payments {
