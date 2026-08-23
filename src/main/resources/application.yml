@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: meridian-goods
+
+logging:
+  level:
+    root: INFO
+    org.axonframework: INFO
