@@ -2,7 +2,7 @@
 schemaVersion: 1
 pattern: state-view
 swimlane: System → Payments
-status: draft
+status: ready-to-implement
 version: 1
 ---
 # Slice: Payments To Request
