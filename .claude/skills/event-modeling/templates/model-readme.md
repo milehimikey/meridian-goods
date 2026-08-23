@@ -1,20 +1,20 @@
-# Meridian Goods
+# {{Model Name}}
 
-Meridian Goods is a small ecommerce ordering system, modeled and implemented as a demonstration of event modeling and event sourcing end to end.
+{{One-paragraph description of the business process(es) this event model covers.}}
 
 ## Live view
 While modeling, run the live view so the team can watch the diagram update:
 
 ```bash
-em watch meridian-goods.em -o meridian-goods.svg --serve   # re-render + instant push-reload
-# then open the URL it prints (http://localhost:5173/?svg=meridian-goods.svg) and share the screen
+em watch {{model-name}}.em -o {{model-name}}.svg --serve   # re-render + instant push-reload
+# then open the URL it prints (http://localhost:5173/?svg={{model-name}}.svg) and share the screen
 ```
 
 Pan/zoom to navigate the diagram (drag, scroll; **Fit** resets), and click **Review mode** in
 the header for a slice-by-slice walkthrough. If a save fails to render, the viewer keeps the
 last good diagram and shows an error banner until the next successful load.
 
-Static render: `em render meridian-goods.em -o meridian-goods.svg`
+Static render: `em render {{model-name}}.em -o {{model-name}}.svg`
 
 ## Patterns legend
 - **State Change** — UI → Command → Event
@@ -34,17 +34,11 @@ never connected to one another.
 ## Slices
 <!-- The canonical slice index — the ONE place slices are enumerated (the state file
      points here rather than keeping its own copy). Generated — run
-     `em slice index meridian-goods.em` to (re)write the table below from the model and its
+     `em slice index {{model-name}}.em` to (re)write the table below from the model and its
      slice docs; never hand-edit between the markers. -->
 <!-- GENERATED:slices:start -->
 | # | Slice | Pattern | Status | Implemented in | Design doc |
 |---|-------|---------|--------|----------------|------------|
-| 1 | Place Order | State Change | no doc yet | — | [slices/place-order.md](slices/place-order.md) |
-| 2 | Payments To Request | State View | no doc yet | — | [slices/payments-to-request.md](slices/payments-to-request.md) |
-| 3 | Request Payment | Automation | no doc yet | — | [slices/request-payment.md](slices/request-payment.md) |
-| 4 | Record Payment Result | Translation | no doc yet | — | [slices/record-payment-result.md](slices/record-payment-result.md) |
-| 5 | Open Orders | State View | no doc yet | — | [slices/open-orders.md](slices/open-orders.md) |
-| 6 | Order Status | State View | no doc yet | — | [slices/order-status.md](slices/order-status.md) |
 <!-- GENERATED:slices:end -->
 
 ## Status
