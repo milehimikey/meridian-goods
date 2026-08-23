@@ -2,7 +2,7 @@
 schemaVersion: 1
 pattern: translation
 swimlane: Payment Provider → Payments
-status: draft
+status: ready-to-implement
 version: 1
 ---
 # Slice: Record Payment Result
@@ -30,6 +30,7 @@ command at the boundary and issues it; it never records an event itself.
 | paymentId | UUID | yes | Must name a `paymentId` already recorded by a `Payment Requested` event — see INV-RPR-3; the adapter maps this from whatever correlation identifier the provider's payload carries for our original request. |
 | orderId | UUID | yes | Mapped from the provider payload; must match the `orderId` already associated with `paymentId` via `Payment Requested`. |
 | amountCents | Int | yes | Mapped from the provider's captured-amount field; the command carries our own integer-cents representation, not the provider's native format (which may be a decimal string or a different currency-minor-unit convention). |
+| capturedAt | DateTime | yes | Mapped from the provider payload's capture-time field — the provider's authoritative clock, crossing the INV-RPR-1 seam as a typed field like everything else. |
 | providerRef | String | yes | The provider's own identifier for this capture event (e.g. their charge/transaction id). This is the idempotency key for INV-RPR-1 — a retried webhook for the same underlying capture carries the same `providerRef`. |
 
 ## Trigger
@@ -45,7 +46,7 @@ command at the boundary and issues it; it never records an event itself.
 | paymentId | UUID | yes | `Record Payment Result.paymentId` |
 | orderId | UUID | yes | `Record Payment Result.orderId` |
 | amountCents | Int | yes | `Record Payment Result.amountCents` |
-| capturedAt | DateTime | yes | System-assigned at command-handling time, not client input — expected `fields-completeness/event-field-no-source` warning on `em validate` (same pattern as `em`'s own bundled `order-fulfillment` example; see `docs/validation.md`). |
+| capturedAt | DateTime | yes | Carried in the provider's webhook payload — the *provider's* capture time, mapped onto `Record Payment Result.capturedAt` at the anti-corruption boundary (INV-RPR-1). Not a server echo; the provider is the authoritative source of when capture happened (see `domain-decisions.md`, timestamp-origin convention). |
 | providerRef | String | yes | `Record Payment Result.providerRef` — kept on the event (not just the command) so downstream reconciliation against the provider's own records never has to re-derive it. |
 
 ## Invariants / Business Rules

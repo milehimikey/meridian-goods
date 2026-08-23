@@ -2,7 +2,7 @@
 schemaVersion: 1
 pattern: automation
 swimlane: System → Payments
-status: draft
+status: ready-to-implement
 version: 1
 ---
 # Slice: Request Payment
@@ -29,6 +29,7 @@ triggers does.
 | paymentId | UUID | yes | Minted by the processor when it decides to act — the idempotency key for this payment attempt; stable across retries of the *same* decision. |
 | orderId | UUID | yes | Must name an order present in `Payments To Request` at the time the processor acts. |
 | amountCents | Int | yes | Must equal the `totalCents` carried on that order's `Payments To Request` entry (INV-RP-2) — the processor never invents or adjusts the amount. |
+| requestedAt | DateTime | yes | Stamped by the processor at decision time — the automation is the command's author, so it supplies the request time (see `domain-decisions.md`, timestamp-origin convention). |
 
 ## Trigger
 **Triggered by:** processor `Payment Requester`, also in this slice.
@@ -43,7 +44,7 @@ triggers does.
 | paymentId | UUID | yes | `Request Payment.paymentId` |
 | orderId | UUID | yes | `Request Payment.orderId` |
 | amountCents | Int | yes | `Request Payment.amountCents` |
-| requestedAt | DateTime | yes | System-assigned at command-handling time, not client input — expected `fields-completeness/event-field-no-source` warning on `em validate` (same pattern as `em`'s own bundled `order-fulfillment` example; see `docs/validation.md`). |
+| requestedAt | DateTime | yes | Stamped by the issuing automation: `Payment Requester` is the command's author, so it legitimately supplies the request time on `Request Payment.requestedAt` — carried on both command and event (see `domain-decisions.md`, timestamp-origin convention). |
 
 ## Invariants / Business Rules
 - **INV-RP-1 (exactly-once liveness):** At most one `Payment Requested` event is ever recorded
