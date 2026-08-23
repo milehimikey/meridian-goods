@@ -39,10 +39,13 @@ enough context that nobody re-litigates a call already made.
   `--slice-ready` handoff gate green without hiding where each value truly originates. Revisit
   if em grows a first-class system-assigned field marker.
 
-- **Cancellation is deliberately deferred to a future slice, not modeled here.** Neither
-  `Open Orders` nor `Order Status` has a "cancelled" state, and there's no `Cancel Order` command
-  in this base model. Rationale: the base six-slice model demonstrates the four core patterns
-  cleanly; cancellation (and the repeated-view/state-machine complexity it brings — an order
-  that can move backward out of "open") is reserved for a dedicated change-beat slice later in
-  the walkthrough, so it can be introduced and taught on its own rather than folded quietly into
-  the base model.
+- **Cancellation: deferred in the base model; added as the change-beat slice.** Originally
+  deliberately deferred out of the base six-slice model — neither `Open Orders` nor `Order Status`
+  had a "cancelled" state, and there was no `Cancel Order` command, so the base model could
+  demonstrate the four core patterns cleanly without the repeated-view/state-machine complexity an
+  order moving backward out of "open" brings. That deferral is now resolved: `slices/cancel-order.md`
+  (State Change) and `slices/open-orders-cancelled.md` (the repeated `Open Orders` instance) model
+  self-service cancellation as the walkthrough's CHANGE beat — introduced and taught on its own,
+  as originally intended, rather than folded quietly into the base model. The load-bearing rule is
+  **INV-CO-1**: an order can be cancelled only *before* `Payment Captured` exists for it —
+  cancellation after capture is rejected, not silently allowed or auto-refunded.
