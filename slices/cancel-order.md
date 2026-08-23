@@ -2,7 +2,7 @@
 schemaVersion: 1
 pattern: state-change
 swimlane: Customer → Ordering
-status: draft
+status: ready-to-implement
 version: 1
 ---
 # Slice: Cancel Order

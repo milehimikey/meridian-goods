@@ -2,7 +2,7 @@
 schemaVersion: 1
 pattern: state-view
 swimlane: Staff → Ordering
-status: draft
+status: ready-to-implement
 version: 1
 ---
 # Slice: Open Orders — cancelled
