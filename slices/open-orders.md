@@ -2,7 +2,8 @@
 schemaVersion: 1
 pattern: state-view
 swimlane: Staff → Ordering
-status: ready-to-implement
+status: implemented
+implementedIn: https://github.com/milehimikey/meridian-goods/pull/9
 version: 1
 ---
 # Slice: Open Orders
