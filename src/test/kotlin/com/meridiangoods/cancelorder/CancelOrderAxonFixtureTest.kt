@@ -48,11 +48,11 @@ class CancelOrderAxonFixtureTest {
         placedAt = Instant.parse("2026-08-20T10:00:00Z"),
     )
 
-    private fun paymentCaptured() = PaymentCaptured(
+    private fun paymentCaptured(capturedAt: Instant = Instant.parse("2026-08-20T11:00:00Z")) = PaymentCaptured(
         paymentId = UUID.randomUUID(),
         orderId = orderId,
         amountCents = 5000,
-        capturedAt = Instant.parse("2026-08-20T11:00:00Z"),
+        capturedAt = capturedAt,
         providerRef = "PROV-REF-1",
     )
 
@@ -77,7 +77,7 @@ class CancelOrderAxonFixtureTest {
     // --- INV-CO-1: reject after capture ------------------------------------------------------
 
     @Test
-    fun `INV-CO-1 - given Order Placed and Payment Captured, when Cancel Order, then rejected as too-late-to-cancel`() {
+    fun `INV-CO-1 - given Payment Captured beyond the grace window, when Cancel Order, then rejected as too-late-to-cancel`() {
         fixture.given()
             .event(orderPlaced())
             .event(paymentCaptured())
@@ -87,6 +87,18 @@ class CancelOrderAxonFixtureTest {
             .exceptionSatisfies { exception ->
                 assertTrue(exception.message?.contains("INV-CO-1") == true)
             }
+    }
+
+    @Test
+    fun `cancel within the grace window after capture succeeds (support-requested)`() {
+        fixture.given()
+            .event(orderPlaced())
+            .event(paymentCaptured(capturedAt = Instant.now().minusSeconds(3600)))
+            .`when`()
+            .command(CancelOrder(orderId, customerId))
+            .then()
+            .success()
+            .eventsSatisfy { events -> assertTrue(events.size == 1) }
     }
 
     // --- INV-CO-2: idempotent retry -----------------------------------------------------------
