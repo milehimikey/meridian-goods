@@ -14,7 +14,7 @@ import java.util.UUID
  * is a pure function of `(command, state) -> List<PaymentRequested>`; [handle] wires it to Axon.
  *
  * This is the *only* place [PaymentRequested] is appended (INV-RP-3) — see
- * [WhenOrderPlacedThenRequestPayment], which holds a `CommandDispatcher`, never an
+ * [WhenOrderPlacedThenRequestPaymentFromQueue], which holds a `CommandDispatcher`, never an
  * `EventAppender`, and so cannot append it directly.
  */
 class RequestPaymentCommandHandler {
@@ -38,12 +38,12 @@ class RequestPaymentCommandHandler {
      */
     private fun decide(command: RequestPayment, state: State): List<PaymentRequested> {
         // INV-RP-1 (exactly-once liveness): once a Payment Requested event has landed for this
-        // orderId, any further Request Payment for the same order — whether a genuine re-poll
-        // by a confused processor, a redelivered Order Placed causing a second reaction, or a
-        // direct retry — is a structural no-op. This is the entity-sourced enforcement that
-        // stands in for the doc's read-side to-do-list draining (see the judgment call recorded
-        // on WhenOrderPlacedThenRequestPayment and in the findings file): the *outcome* — at
-        // most one Payment Requested per orderId — is identical either way.
+        // orderId, any further Request Payment for the same order — whether a direct retry or a
+        // command that somehow slipped through despite the order's absence from the queue — is
+        // a structural no-op. This is the second, entity-sourced line of defense; the primary
+        // enforcement is the read-side to-do-list draining in
+        // WhenOrderPlacedThenRequestPaymentFromQueue (INV-PTR-2 removes the order from
+        // Payments To Request once requested, so a later reaction has nothing to select).
         if (state.requested) {
             return emptyList()
         }

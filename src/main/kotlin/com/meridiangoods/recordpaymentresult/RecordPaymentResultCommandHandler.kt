@@ -46,12 +46,24 @@ class RecordPaymentResultCommandHandler {
                 "associated with paymentId ${command.paymentId} via Payment Requested"
         }
 
-        // INV-RPR-2 (idempotent under retries) and the "distinct providerRef is a distinct
-        // fact" scenario: once this payment is captured, no further Record Payment Result for
-        // the same paymentId produces a new event — whether the retry carries the identical
-        // providerRef (a harmless webhook redelivery) or a different one (this domain doesn't
-        // allow a second capture per payment either way; the doc resolves this the same way).
         if (state.captured) {
+            // "Distinct providerRef is a distinct fact" scenario: a redelivery of the SAME
+            // capture (identical providerRef) is INV-RPR-2's ordinary idempotent no-op — the
+            // provider is just retelling us something we already recorded. A DIFFERENT
+            // providerRef arriving for an already-captured payment is not a redelivery, it is a
+            // second, distinct capture fact for a payment this domain only ever captures once —
+            // that anomaly is rejected outright, loudly, not silently absorbed into the same
+            // no-op branch as an ordinary retry.
+            if (state.providerRef != command.providerRef) {
+                error(
+                    "distinct providerRef on an already-captured payment: paymentId " +
+                        "${command.paymentId} was already captured with providerRef " +
+                        "'${state.providerRef}', but this Record Payment Result carries a " +
+                        "different providerRef '${command.providerRef}' — a payment is captured " +
+                        "at most once, so a genuinely distinct capture fact for an " +
+                        "already-captured payment is rejected, not treated as a redelivery",
+                )
+            }
             return emptyList()
         }
 
@@ -77,6 +89,8 @@ class RecordPaymentResultCommandHandler {
             private set
         var captured: Boolean = false
             private set
+        var providerRef: String? = null
+            private set
 
         @EventSourcingHandler
         fun evolve(event: PaymentRequested) {
@@ -87,6 +101,7 @@ class RecordPaymentResultCommandHandler {
         @EventSourcingHandler
         fun evolve(event: PaymentCaptured) {
             captured = true
+            providerRef = event.providerRef
         }
     }
 }
