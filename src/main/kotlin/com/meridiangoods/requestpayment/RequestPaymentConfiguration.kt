@@ -1,6 +1,7 @@
 package com.meridiangoods.requestpayment
 
 import com.meridiangoods.axon.SliceModule
+import com.meridiangoods.paymentstorequest.PaymentsToRequestRepository
 import org.axonframework.eventsourcing.configuration.EventSourcedEntityModule
 import org.axonframework.eventsourcing.configuration.EventSourcingConfigurer
 import org.axonframework.messaging.commandhandling.configuration.CommandHandlingModule
@@ -28,8 +29,12 @@ class RequestPaymentConfiguration : SliceModule {
             .autodetectedCommandHandlingComponent { RequestPaymentCommandHandler() }
 
         val eventProcessor = EventProcessorModule
-            .pooledStreaming("WhenOrderPlacedThenRequestPayment")
-            .eventHandlingComponents { it.autodetected { WhenOrderPlacedThenRequestPayment() } }
+            .pooledStreaming("WhenOrderPlacedThenRequestPaymentFromQueue")
+            .eventHandlingComponents { c ->
+                c.autodetected { cfg ->
+                    WhenOrderPlacedThenRequestPaymentFromQueue(cfg.getComponent(PaymentsToRequestRepository::class.java))
+                }
+            }
             .notCustomized()
 
         return configurer

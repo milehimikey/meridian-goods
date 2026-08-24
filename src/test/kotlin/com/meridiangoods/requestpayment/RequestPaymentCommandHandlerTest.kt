@@ -1,5 +1,7 @@
 package com.meridiangoods.requestpayment
 
+import com.meridiangoods.paymentstorequest.InMemoryPaymentsToRequestRepository
+import com.meridiangoods.paymentstorequest.PaymentsToRequestRepository
 import com.meridiangoods.placeorder.OrderPlaced
 import org.axonframework.eventsourcing.configuration.EventSourcingConfigurer
 import org.axonframework.test.fixture.AxonTestFixture
@@ -13,9 +15,15 @@ import kotlin.test.assertTrue
 /**
  * Synchronous, `given().when().command().then()` tests for `RequestPaymentCommandHandler`'s
  * decision logic (`slices/request-payment.md`). This is the fast, deterministic half of this
- * slice's tests — see [WhenOrderPlacedThenRequestPaymentReactiveTest] for the slower proof that
- * `Order Placed` actually triggers the automation end to end (per `axon-policy-testing`'s
- * "Unit-Testing the Command-Handler Half" guidance).
+ * slice's tests — see [WhenOrderPlacedThenRequestPaymentFromQueueReactiveTest] for the slower
+ * proof that `Order Placed` actually triggers the automation end to end (per
+ * `axon-policy-testing`'s "Unit-Testing the Command-Handler Half" guidance).
+ *
+ * The automation registered by [RequestPaymentConfiguration] now depends on a
+ * `PaymentsToRequestRepository` component (see [WhenOrderPlacedThenRequestPaymentFromQueue]) —
+ * a bare in-memory instance is registered here purely so the slice's configurer starts; none of
+ * these tests exercise the automation's reactive path (that's covered by the reactive test
+ * above).
  */
 class RequestPaymentCommandHandlerTest {
 
@@ -27,7 +35,11 @@ class RequestPaymentCommandHandlerTest {
 
     @BeforeEach
     fun beforeEach() {
-        val configurer = RequestPaymentConfiguration().configure(EventSourcingConfigurer.create())
+        val configurer = EventSourcingConfigurer.create()
+            .componentRegistry { cr ->
+                cr.registerComponent(PaymentsToRequestRepository::class.java) { InMemoryPaymentsToRequestRepository() }
+            }
+            .let(RequestPaymentConfiguration()::configure)
         fixture = AxonTestFixture.with(configurer)
     }
 
@@ -112,10 +124,10 @@ class RequestPaymentCommandHandlerTest {
     @Test
     fun `INV-RP-3 - the automation's react method has no EventAppender parameter, so it cannot append Payment Requested directly`() {
         // Structural proof that the only path to Payment Requested is through this command
-        // handler: WhenOrderPlacedThenRequestPayment.react holds a CommandDispatcher, never an
-        // EventAppender, and RequestPaymentCommandHandler.handle (exercised by the happy-path
-        // test above) is the only method in this slice that does.
-        val reactMethod = WhenOrderPlacedThenRequestPayment::class.java.declaredMethods
+        // handler: WhenOrderPlacedThenRequestPaymentFromQueue.react holds a CommandDispatcher,
+        // never an EventAppender, and RequestPaymentCommandHandler.handle (exercised by the
+        // happy-path test above) is the only method in this slice that does.
+        val reactMethod = WhenOrderPlacedThenRequestPaymentFromQueue::class.java.declaredMethods
             .single { it.name == "react" }
         assertTrue(reactMethod.parameterTypes.none { it == org.axonframework.messaging.eventhandling.gateway.EventAppender::class.java })
 

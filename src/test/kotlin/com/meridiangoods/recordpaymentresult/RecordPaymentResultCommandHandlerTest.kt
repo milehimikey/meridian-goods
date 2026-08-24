@@ -104,7 +104,7 @@ class RecordPaymentResultCommandHandlerTest {
     }
 
     @Test
-    fun `distinct providerRef after already captured - given Payment Captured already recorded, when a different providerRef arrives, then also no second event (a payment is captured once)`() {
+    fun `distinct providerRef is a distinct fact - given Payment Captured already recorded with providerRef ch_abc123, when a different providerRef arrives, then rejected`() {
         val alreadyCaptured = PaymentCaptured(paymentId, orderId, amountCents = 5000, capturedAt = capturedAt, providerRef = "ch_abc123")
 
         fixture.given()
@@ -113,8 +113,11 @@ class RecordPaymentResultCommandHandlerTest {
             .`when`()
             .command(RecordPaymentResult(paymentId, orderId, amountCents = 5000, capturedAt = capturedAt.plusSeconds(30), providerRef = "ch_xyz789"))
             .then()
-            .success()
-            .noEvents()
+            .exceptionSatisfies { exception ->
+                assertTrue(exception.message?.contains("distinct providerRef on an already-captured payment") == true)
+                assertTrue(exception.message?.contains("ch_abc123") == true)
+                assertTrue(exception.message?.contains("ch_xyz789") == true)
+            }
     }
 
     // --- INV-RPR-1: anti-corruption seam (structural) -----------------------------------------
