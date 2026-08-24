@@ -12,6 +12,7 @@ import org.axonframework.messaging.eventstreaming.EventCriteria
 import org.axonframework.messaging.eventstreaming.Tag
 import org.axonframework.modelling.annotation.InjectEntity
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 
@@ -39,6 +40,11 @@ import java.util.UUID
 class CancelOrderCommandHandler(
     private val clock: Clock = Clock.systemUTC(),
 ) {
+
+    companion object {
+        // Support-requested: matches the provider's auto-void settlement window.
+        val CANCELLATION_GRACE: Duration = Duration.ofHours(24)
+    }
 
     @CommandHandler
     fun handle(
@@ -81,9 +87,12 @@ class CancelOrderCommandHandler(
             return emptyList()
         }
 
-        // INV-CO-1: an order can be cancelled only BEFORE Payment Captured exists for it.
-        check(!state.paymentCaptured) {
-            "INV-CO-1: orderId ${command.orderId} cannot be cancelled - payment has already captured"
+        // INV-CO-1, with the grace window support asked for: customers may still self-cancel
+        // shortly after capture (the provider auto-voids inside its settlement window, so no
+        // refund flow is needed for these).
+        val capturedAt = state.paymentCapturedAt
+        check(capturedAt == null || Duration.between(capturedAt, cancelledAt) <= CANCELLATION_GRACE) {
+            "INV-CO-1: orderId ${command.orderId} cannot be cancelled - payment captured more than ${CANCELLATION_GRACE.toHours()}h ago"
         }
 
         return listOf(
@@ -109,6 +118,8 @@ class CancelOrderCommandHandler(
             private set
         var paymentCaptured: Boolean = false
             private set
+        var paymentCapturedAt: Instant? = null
+            private set
         var cancelled: Boolean = false
             private set
 
@@ -121,6 +132,7 @@ class CancelOrderCommandHandler(
         @EventSourcingHandler
         fun evolve(event: PaymentCaptured) {
             paymentCaptured = true
+            paymentCapturedAt = event.capturedAt
         }
 
         @EventSourcingHandler
