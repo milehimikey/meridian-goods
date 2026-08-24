@@ -45,8 +45,8 @@ never connected to one another.
 | 4 | Record Payment Result | Translation | implemented | https://github.com/milehimikey/meridian-goods/pull/12 | [slices/record-payment-result.md](slices/record-payment-result.md) |
 | 5 | Open Orders | State View | implemented | https://github.com/milehimikey/meridian-goods/pull/9 | [slices/open-orders.md](slices/open-orders.md) |
 | 6 | Order Status | State View | implemented | https://github.com/milehimikey/meridian-goods/pull/11 | [slices/order-status.md](slices/order-status.md) |
-| 7 | Cancel Order | State Change | draft | — | [slices/cancel-order.md](slices/cancel-order.md) |
-| 8 | Open Orders — cancelled | State View | draft | — | [slices/open-orders-cancelled.md](slices/open-orders-cancelled.md) |
+| 7 | Cancel Order | State Change | implemented | https://github.com/milehimikey/meridian-goods/pull/17 | [slices/cancel-order.md](slices/cancel-order.md) |
+| 8 | Open Orders — cancelled | State View | implemented | https://github.com/milehimikey/meridian-goods/pull/16 | [slices/open-orders-cancelled.md](slices/open-orders-cancelled.md) |
 <!-- GENERATED:slices:end -->
 
 ## Status
