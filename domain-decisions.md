@@ -47,5 +47,9 @@ enough context that nobody re-litigates a call already made.
   (State Change) and `slices/open-orders-cancelled.md` (the repeated `Open Orders` instance) model
   self-service cancellation as the walkthrough's CHANGE beat — introduced and taught on its own,
   as originally intended, rather than folded quietly into the base model. The load-bearing rule is
-  **INV-CO-1**: an order can be cancelled only *before* `Payment Captured` exists for it —
-  cancellation after capture is rejected, not silently allowed or auto-refunded.
+  **INV-CO-1 (v2, ratified 2026-08-23)**: an order can be cancelled *before* `Payment Captured`
+  exists for it, **or within the 24-hour grace window after capture** — the provider auto-voids
+  captures inside its settlement window, so no refund flow is needed there; beyond the window,
+  cancellation is rejected. (v1 said before-capture only; the grace window shipped in PR #17
+  ahead of the model, was caught by the first conformance run, and was ratified as an
+  intentional business decision rather than reverted.)

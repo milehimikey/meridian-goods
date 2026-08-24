@@ -3,8 +3,8 @@ schemaVersion: 1
 pattern: state-change
 swimlane: Customer → Ordering
 status: implemented
-implementedIn: https://github.com/milehimikey/meridian-goods/pull/15
-version: 1
+implementedIn: https://github.com/milehimikey/meridian-goods/pull/17
+version: 2
 ---
 # Slice: Cancel Order
 
@@ -46,11 +46,15 @@ the repeated `Open Orders` instance).
 | cancelledAt | DateTime | yes | Server clock at the moment the event is recorded — the actual, meaningful origin of this field (see the Command/Input note above on why it's echoed there too). |
 
 ## Invariants / Business Rules
-- **INV-CO-1: an order can be cancelled only BEFORE `Payment Captured` exists for it.** Once
-  `Payment Captured` has been recorded for an order, a `Cancel Order` command for that order is
-  **rejected** — capture means money has actually moved, and this slice models self-service
-  cancellation only, not a refund flow. A customer whose payment has already captured has to go
-  through a separate (unmodeled, future) refund/return path, not this command.
+- **INV-CO-1 (v2): an order can be cancelled before `Payment Captured` exists for it, or within
+  the 24-hour grace window after capture.** The payment provider auto-voids captures inside its
+  settlement window, so a cancel within 24h of `capturedAt` needs no refund flow; beyond that
+  window, `Cancel Order` is **rejected** — money has genuinely moved, and post-settlement
+  cancellation belongs to a separate (unmodeled, future) refund/return path, not this command.
+  *(v1 said "only BEFORE capture, ever"; the grace window shipped in
+  [PR #17](https://github.com/milehimikey/meridian-goods/pull/17) ahead of this doc — the
+  2026-08-23 conformance run caught the drift and the ratifier ruled the behavior intentional.
+  See `## Delta` and `conformance/2026-08-23-report.md`.)*
 - **INV-CO-2 (idempotent cancel):** A `Cancel Order` command for an `orderId` that already has an
   `Order Cancelled` event recorded is a **no-op**: no second event is appended, and the command
   returns the original cancellation's result (its original `cancelledAt` stands, never overwritten
@@ -66,9 +70,14 @@ the repeated `Open Orders` instance).
   `Order Cancelled` is recorded with `orderId: O1`, `customerId: C1`, and a server-assigned
   `cancelledAt`; `O1` disappears from (or is marked cancelled on) the `Open Orders` staff board via
   `Open Orders — cancelled`.
-- **Rejected — already captured (INV-CO-1)** — Given `Order Placed` exists for `orderId: O1` and
-  `Payment Captured` has already been recorded for `O1`, When `C1` submits `Cancel Order` for `O1`,
-  Then the command is rejected as too-late-to-cancel and no `Order Cancelled` event is recorded.
+- **Cancel within the grace window (INV-CO-1 v2)** — Given `Order Placed` exists for `orderId: O1`
+  and `Payment Captured` was recorded for `O1` less than 24 hours ago, When `C1` submits
+  `Cancel Order` for `O1`, Then `Order Cancelled` is recorded (the provider auto-voids the
+  capture inside its settlement window).
+- **Rejected — captured beyond the grace window (INV-CO-1 v2)** — Given `Order Placed` exists for
+  `orderId: O1` and `Payment Captured` was recorded for `O1` more than 24 hours ago, When `C1`
+  submits `Cancel Order` for `O1`, Then the command is rejected as too-late-to-cancel and no
+  `Order Cancelled` event is recorded.
 - **Idempotent retry (INV-CO-2)** — Given `Order Cancelled` already exists for `orderId: O1`, When
   `C1` submits `Cancel Order` for `O1` again (double-click, retried request), Then no second
   `Order Cancelled` event is recorded and the command returns the original cancellation's result.
@@ -78,6 +87,15 @@ the repeated `Open Orders` instance).
 - **Rejected — unknown order** — Given no `Order Placed` event exists for `orderId: O9`, When
   `Cancel Order` is submitted for `O9`, Then the command is rejected as unknown and no event is
   recorded.
+
+## Delta
+
+- **MODIFIED (v1 → v2, ratified 2026-08-23):** INV-CO-1 — "cancel only before `Payment Captured`"
+  became "cancel before capture, or within the 24h post-capture grace window (provider auto-void
+  settlement window)". Scenario "Rejected — already captured" split into the within-grace success
+  and beyond-grace rejection scenarios above. Origin: shipped in PR #17 ahead of the model; caught
+  by the 2026-08-23 conformance run; ratified as intentional (ruling recorded in
+  `conformance/2026-08-23-report.md`). Implementation already conforms — no propagation work.
 
 ## Alternate & Error Flows
 - **Race with capture:** if `Payment Captured` and `Cancel Order` are in flight at nearly the same
