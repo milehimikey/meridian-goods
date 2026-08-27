@@ -22,8 +22,9 @@ the methodology and its narrative live in the Slicewright repo linked above.
   coverage) *and* its ratification record (who ruled on each finding, and
   how) in one file — see
   [`conformance/2026-08-23-report.md`](conformance/2026-08-23-report.md)
-  for the first completed cycle: 8 slices checked, 25 invariants
-  coverage-verified, 4 findings, all ratified same-day.
+  for the first completed cycle: 8 slices checked, all 20 distinct
+  invariants coverage-verified (0 uncovered), 4 findings, all ratified
+  same-day (the report's addendum explains its version-specific counts).
 - **`walkthrough/*` tags** — the locked walkthrough script (in the
   Slicewright repo) reproduces against this repo's history via a series of
   `walkthrough/*` git tags, one per beat, each checked out from a clean
