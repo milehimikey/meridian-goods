@@ -1,6 +1,63 @@
 # Meridian Goods
 
-Meridian Goods is a small ecommerce ordering system, modeled and implemented as a demonstration of event modeling and event sourcing end to end.
+Meridian Goods is the [Slicewright](https://github.com/milehimikey/slicewright)
+demo: a small ecommerce ordering system, event-modeled and event-sourced,
+built slice by slice under the `em` contract — one slice, one branch, one PR,
+each ratified before it was built. It's the proof artifact, not the pitch;
+the methodology and its narrative live in the Slicewright repo linked above.
+
+## How to read this repo
+
+- **The model** — [`meridian-goods.em`](meridian-goods.em) is the canonical
+  source; [`meridian-goods.svg`](meridian-goods.svg) is its rendered
+  diagram (see [Live view](#live-view) below to browse it interactively).
+- **[`slices/`](slices/)** — one design doc per slice: fields, invariants,
+  Given/When/Then scenarios, and a frontmatter `status`/`implementedIn`
+  link back to the PR that built it.
+- **The generated slice index** — the [Slices](#slices) table below is
+  regenerated from the model and the slice docs; never hand-edit it (see
+  the comment above the table).
+- **[`conformance/`](conformance/)** — dated conformance reports. Each
+  report documents both the run itself (what was checked, findings,
+  coverage) *and* its ratification record (who ruled on each finding, and
+  how) in one file — see
+  [`conformance/2026-08-23-report.md`](conformance/2026-08-23-report.md)
+  for the first completed cycle: 8 slices checked, 25 invariants
+  coverage-verified, 4 findings, all ratified same-day.
+- **`walkthrough/*` tags** — the locked walkthrough script (in the
+  Slicewright repo) reproduces against this repo's history via a series of
+  `walkthrough/*` git tags, one per beat, each checked out from a clean
+  clone.
+
+## How to run it
+
+```bash
+./gradlew test
+```
+
+Modeling commands use pinned versions:
+
+```bash
+npx -y @milehimikey/em@1.8.0 validate meridian-goods.em
+npx -y em-sdd-bridge@0.4.0 <slice-key> --symlink
+```
+
+## Honest notes
+
+- **In-memory event store.** This repo runs Axon Framework 5's in-memory
+  event store, not Axon Server — there is no GA Axon Server connector for
+  Axon 5's DCB model yet. The event-sourcing mechanics are real; the
+  persistence backend is not production infrastructure.
+- **The drift→conform→ratify arc is real project history, not staged.**
+  `Cancel Order` shipped a 24-hour post-capture grace window
+  ([PR #17](https://github.com/milehimikey/meridian-goods/pull/17)) that
+  contradicted its own ratified invariant; the first conformance run
+  ([PR #18](https://github.com/milehimikey/meridian-goods/pull/18)) caught
+  it, and it was ratified as an intentional business decision rather than
+  reverted or silently ignored
+  ([PR #19](https://github.com/milehimikey/meridian-goods/pull/19) /
+  [#20](https://github.com/milehimikey/meridian-goods/pull/20)) — see the
+  report linked above for the full record.
 
 ## Live view
 While modeling, run the live view so the team can watch the diagram update:
