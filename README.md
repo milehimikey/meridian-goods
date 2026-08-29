@@ -1,10 +1,26 @@
 # Meridian Goods
 
+![em status](status-badge.svg)
+
 Meridian Goods is the [Slicewright](https://github.com/milehimikey/slicewright)
 demo: a small ecommerce ordering system, event-modeled and event-sourced,
 built slice by slice under the `em` contract — one slice, one branch, one PR,
 each ratified before it was built. It's the proof artifact, not the pitch;
 the methodology and its narrative live in the Slicewright repo linked above.
+
+## Status at a glance
+<!-- Generated — run `em status meridian-goods.em --tests src/test --md` to refresh the table,
+     and `em status meridian-goods.em --tests src/test --badge -o status-badge.svg` to refresh
+     the badge above; never hand-edit between the markers. -->
+<!-- GENERATED:status:start -->
+| Metric | Value |
+|---|---|
+| Slices | 8/8 implemented (0 ready-to-implement, 0 reviewed, 0 draft) |
+| Invariants | 20/20 covered |
+| Open issues | 0 |
+| Open questions | 0 unchecked |
+| Last conformed | `8f12ed8` — 7 commits and 0 slice-PRs behind HEAD |
+<!-- GENERATED:status:end -->
 
 ## How to read this repo
 
