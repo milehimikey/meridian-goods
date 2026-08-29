@@ -19,7 +19,7 @@ the methodology and its narrative live in the Slicewright repo linked above.
 | Invariants | 20/20 covered |
 | Open issues | 0 |
 | Open questions | 0 unchecked |
-| Last conformed | `8f12ed8` — 7 commits and 0 slice-PRs behind HEAD |
+| Last conformed | `8f12ed8` — 10 commits and 0 slice-PRs behind HEAD |
 <!-- GENERATED:status:end -->
 
 ## How to read this repo
