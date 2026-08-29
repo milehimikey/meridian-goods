@@ -29,25 +29,32 @@ Dashboard**.
   write side.
 
 ## Invariants / Business Rules
-- **INV-OO-1:** The fold is idempotent. Re-projecting the same `Order Placed` or
-  `Payment Captured` event (redelivery, replay, projector restart) never creates a duplicate row
-  or double-applies a field — each order appears exactly once, keyed by `orderId`.
+- **INV-OO-1:** The fold is idempotent.
+  - Re-projecting the same `Order Placed` or `Payment Captured` event (redelivery, replay,
+    projector restart) never creates a duplicate row or double-applies a field — each order
+    appears exactly once, keyed by `orderId`.
 - **INV-OO-2:** `capturedAt` is populated **only** when a `Payment Captured` event has actually
   been projected for that `orderId`; until then it stays genuinely absent (`null`), never
-  backfilled, defaulted, or guessed from elapsed time. The row's shape always reflects which
-  events have actually landed, not an inference about what "should" have happened by now.
+  backfilled, defaulted, or guessed from elapsed time.
+  - The row's shape always reflects which events have actually landed, not an inference about
+    what "should" have happened by now.
 
 ## Scenarios (Given / When / Then)
-- **`Order Placed` lands** — Given no prior row for this `orderId`, When `Order Placed` is
-  projected, Then a new `Open Orders` row appears with `orderId`, `customerId`, `totalCents`,
-  `placedAt` populated and `capturedAt` absent.
-- **`Payment Captured` lands** — Given an existing `Open Orders` row for this `orderId` (from a
-  prior `Order Placed`), When `Payment Captured` is projected, Then that same row is updated in
-  place with `capturedAt` populated — no new row is created (INV-OO-1).
-- **Redelivered event (INV-OO-1)** — Given an `Open Orders` row already reflects a given
-  `Order Placed` (or `Payment Captured`) event, When that same event is redelivered to the
-  projector (at-least-once delivery, replay), Then the row is unchanged — no duplicate row, no
-  field double-applied.
+- **`Order Placed` lands**
+  - **Given:** no prior row for this `orderId`
+  - **When:** `Order Placed` is projected
+  - **Then:** a new `Open Orders` row appears with `orderId`, `customerId`, `totalCents`,
+    `placedAt` populated and `capturedAt` absent.
+- **`Payment Captured` lands**
+  - **Given:** an existing `Open Orders` row for this `orderId` (from a prior `Order Placed`)
+  - **When:** `Payment Captured` is projected
+  - **Then:** that same row is updated in place with `capturedAt` populated — no new row is
+    created (INV-OO-1).
+- **Redelivered event (INV-OO-1)**
+  - **Given:** an `Open Orders` row already reflects a given `Order Placed` (or
+    `Payment Captured`) event
+  - **When:** that same event is redelivered to the projector (at-least-once delivery, replay)
+  - **Then:** the row is unchanged — no duplicate row, no field double-applied.
 
 ## Alternate & Error Flows
 - **Out-of-order delivery:** if `Payment Captured` were somehow projected before its matching

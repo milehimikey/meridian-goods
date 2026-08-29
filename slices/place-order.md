@@ -49,42 +49,56 @@ what makes idempotent placement (INV-PO-1) meaningful.
 | placedAt | DateTime | yes | Server clock at the moment the event is recorded — the actual, meaningful origin of this field (see the Command/Input note above on why it's echoed there too). |
 
 ## Invariants / Business Rules
-- **INV-PO-1:** Placement is idempotent by client-supplied `orderId`. A `Place Order` command
-  whose `orderId` already has a recorded `Order Placed` event is **not** a new order: if the
-  resubmitted payload is identical, the command is a no-op that returns the original result
-  without appending a second event; if the payload differs, the command is rejected as a
-  conflict (the same `orderId` can never back two different orders).
-- **INV-PO-2:** `totalCents` must equal Σ (`priceCents` × `quantity`) over all `lineItems`. The
-  server computes this itself and rejects a command whose supplied `totalCents` disagrees —
-  the client's total is never taken on faith.
-- **INV-PO-3:** An order must contain at least one line item. A `lineItems` array with zero
-  entries is rejected — there is no such thing as an empty order.
-- **INV-PO-4:** Every line item's `quantity` must be a positive integer. Zero, negative, or
-  fractional quantities are rejected line-item-by-line-item (the whole command fails; no partial
-  order is created).
+- **INV-PO-1:** Placement is idempotent by client-supplied `orderId`.
+  - A `Place Order` command whose `orderId` already has a recorded `Order Placed` event is
+    **not** a new order: if the resubmitted payload is identical, the command is a no-op that
+    returns the original result without appending a second event; if the payload differs, the
+    command is rejected as a conflict (the same `orderId` can never back two different orders).
+- **INV-PO-2:** `totalCents` must equal Σ (`priceCents` × `quantity`) over all `lineItems`.
+  - The server computes this itself and rejects a command whose supplied `totalCents`
+    disagrees — the client's total is never taken on faith.
+- **INV-PO-3:** An order must contain at least one line item.
+  - A `lineItems` array with zero entries is rejected — there is no such thing as an empty
+    order.
+- **INV-PO-4:** Every line item's `quantity` must be a positive integer.
+  - Zero, negative, or fractional quantities are rejected line-item-by-line-item (the whole
+    command fails; no partial order is created).
 
 ## Scenarios (Given / When / Then)
-- **Happy path** — Given a customer with a non-empty cart of 2 line items whose prices and
-  quantities sum correctly, When they submit `Place Order` with a fresh `orderId`, Then
-  `Order Placed` is recorded with the submitted `orderId`, `customerId`, `lineItems`, `totalCents`,
-  and a server-assigned `placedAt`; the order becomes visible on `Open Orders` and `Order Status`.
-- **Rejected — total mismatch (INV-PO-2)** — Given a cart of 2 line items whose true sum is
-  4200 cents, When `Place Order` is submitted with `totalCents: 4000`, Then the command is
-  rejected with a total-mismatch reason and no `Order Placed` event is recorded.
-- **Rejected — empty order (INV-PO-3)** — Given a cart with zero line items, When `Place Order`
-  is submitted, Then the command is rejected as an empty order and no event is recorded.
-- **Rejected — invalid quantity (INV-PO-4)** — Given a cart containing one line item with
-  `quantity: -1` (or `0`), When `Place Order` is submitted, Then the command is rejected citing
-  the offending line item and no event is recorded.
-- **Duplicate-`orderId` retry (INV-PO-1)** — Given an `Order Placed` event already recorded for
-  `orderId: X` from an earlier successful submit, When the customer's client retries `Place Order`
-  with the same `orderId: X` and the identical payload (e.g. after a timed-out response), Then no
-  second `Order Placed` event is recorded and the command returns the original order's result —
-  the customer is never double-charged or double-fulfilled from a retried click.
-- **Conflicting duplicate `orderId` (INV-PO-1)** — Given an `Order Placed` event already recorded
-  for `orderId: X`, When a `Place Order` command arrives reusing `orderId: X` but with different
-  `lineItems`/`totalCents`, Then the command is rejected as a conflict and no second event is
-  recorded — a reused `orderId` never silently mutates or replaces the original order.
+- **Happy path**
+  - **Given:** a customer with a non-empty cart of 2 line items whose prices and quantities
+    sum correctly
+  - **When:** they submit `Place Order` with a fresh `orderId`
+  - **Then:** `Order Placed` is recorded with the submitted `orderId`, `customerId`,
+    `lineItems`, `totalCents`, and a server-assigned `placedAt`; the order becomes visible on
+    `Open Orders` and `Order Status`.
+- **Rejected — total mismatch (INV-PO-2)**
+  - **Given:** a cart of 2 line items whose true sum is 4200 cents
+  - **When:** `Place Order` is submitted with `totalCents: 4000`
+  - **Then:** the command is rejected with a total-mismatch reason and no `Order Placed`
+    event is recorded.
+- **Rejected — empty order (INV-PO-3)**
+  - **Given:** a cart with zero line items
+  - **When:** `Place Order` is submitted
+  - **Then:** the command is rejected as an empty order and no event is recorded.
+- **Rejected — invalid quantity (INV-PO-4)**
+  - **Given:** a cart containing one line item with `quantity: -1` (or `0`)
+  - **When:** `Place Order` is submitted
+  - **Then:** the command is rejected citing the offending line item and no event is recorded.
+- **Duplicate-`orderId` retry (INV-PO-1)**
+  - **Given:** an `Order Placed` event already recorded for `orderId: X` from an earlier
+    successful submit
+  - **When:** the customer's client retries `Place Order` with the same `orderId: X` and the
+    identical payload (e.g. after a timed-out response)
+  - **Then:** no second `Order Placed` event is recorded and the command returns the original
+    order's result — the customer is never double-charged or double-fulfilled from a retried
+    click.
+- **Conflicting duplicate `orderId` (INV-PO-1)**
+  - **Given:** an `Order Placed` event already recorded for `orderId: X`
+  - **When:** a `Place Order` command arrives reusing `orderId: X` but with different
+    `lineItems`/`totalCents`
+  - **Then:** the command is rejected as a conflict and no second event is recorded — a
+    reused `orderId` never silently mutates or replaces the original order.
 
 ## Alternate & Error Flows
 - **Idempotent retry:** see INV-PO-1 and its two scenarios above — same-payload replay is a

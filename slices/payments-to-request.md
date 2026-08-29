@@ -38,32 +38,42 @@ events as they arrive. Its "actor" is the `Payment Requester` processor, which r
 
 ## Invariants / Business Rules
 - **INV-PTR-1 (idempotent fold):** Folding the same `Order Placed` event more than once (e.g. a
-  projection rebuild, or an at-least-once delivery redelivering the event) must never produce more
-  than one queue entry for a given `orderId`. The fold is an upsert keyed on `orderId`, not an
-  append — replay-safety here is what makes `em conform`-style rebuilds and redelivery both safe.
+  projection rebuild, or an at-least-once delivery redelivering the event) must never produce
+  more than one queue entry for a given `orderId`.
+  - The fold is an upsert keyed on `orderId`, not an append — replay-safety here is what makes
+    `em conform`-style rebuilds and redelivery both safe.
 - **INV-PTR-2 (removal on request):** An order is removed from `Payments To Request` once a
-  `Payment Requested` event exists for its `orderId` (recorded by the `Request Payment` slice that
-  watches this queue). This is the invariant that keeps the to-do list draining: without it, the
-  `Payment Requester` processor would re-request payment for the same order on every poll — the
-  classic "to-do list that never drains" bug. The removal is driven by `Payment Requested`, not by
-  `Payment Captured`, because the queue's job is "has a request been *issued*", not "has it been
-  *paid*" — a slow or failed provider response must not cause a duplicate request (see
-  `slices/request-payment.md`, `INV-RP-1`).
+  `Payment Requested` event exists for its `orderId` (recorded by the `Request Payment` slice
+  that watches this queue).
+  - This is the invariant that keeps the to-do list draining: without it, the
+    `Payment Requester` processor would re-request payment for the same order on every poll —
+    the classic "to-do list that never drains" bug.
+  - The removal is driven by `Payment Requested`, not by `Payment Captured`, because the
+    queue's job is "has a request been *issued*", not "has it been *paid*" — a slow or failed
+    provider response must not cause a duplicate request (see `slices/request-payment.md`,
+    `INV-RP-1`).
 
 ## Scenarios (Given / When / Then)
-- **Happy path** — Given no prior events for order `O1`, When `Order Placed` (orderId `O1`,
-  totalCents `5000`, placedAt `2026-08-20T10:00:00Z`) is recorded, Then `Payments To Request`
-  gains one entry for `O1` (totalCents `5000`).
-- **Idempotent fold (INV-PTR-1)** — Given `Order Placed` for `O1` has already been folded once,
-  When the same `Order Placed` event is folded again (rebuild or redelivery), Then
-  `Payments To Request` still holds exactly one entry for `O1`, not two.
-- **Drains on request (INV-PTR-2)** — Given `O1` is present in `Payments To Request`, When
-  `Payment Requested` for `O1` is recorded (in the `Request Payment` slice), Then `O1` is removed
-  from `Payments To Request` and the `Payment Requester` processor never re-selects it.
-- **Untouched by capture** — Given `O1` has already been removed from `Payments To Request` by its
-  `Payment Requested` event, When `Payment Captured` for `O1` is later recorded, Then
-  `Payments To Request` is unaffected (it isn't a source for this view) — capture outcomes are the
-  concern of `Order Status` and `Open Orders`, not this to-do list.
+- **Happy path**
+  - **Given:** no prior events for order `O1`
+  - **When:** `Order Placed` (orderId `O1`, totalCents `5000`, placedAt
+    `2026-08-20T10:00:00Z`) is recorded
+  - **Then:** `Payments To Request` gains one entry for `O1` (totalCents `5000`).
+- **Idempotent fold (INV-PTR-1)**
+  - **Given:** `Order Placed` for `O1` has already been folded once
+  - **When:** the same `Order Placed` event is folded again (rebuild or redelivery)
+  - **Then:** `Payments To Request` still holds exactly one entry for `O1`, not two.
+- **Drains on request (INV-PTR-2)**
+  - **Given:** `O1` is present in `Payments To Request`
+  - **When:** `Payment Requested` for `O1` is recorded (in the `Request Payment` slice)
+  - **Then:** `O1` is removed from `Payments To Request` and the `Payment Requester`
+    processor never re-selects it.
+- **Untouched by capture**
+  - **Given:** `O1` has already been removed from `Payments To Request` by its
+    `Payment Requested` event
+  - **When:** `Payment Captured` for `O1` is later recorded
+  - **Then:** `Payments To Request` is unaffected (it isn't a source for this view) — capture
+    outcomes are the concern of `Order Status` and `Open Orders`, not this to-do list.
 
 ## Alternate & Error Flows
 - **Rebuild from scratch:** replaying the full `Order Placed` history against an empty projection

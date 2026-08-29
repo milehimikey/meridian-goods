@@ -49,37 +49,48 @@ triggers does.
 
 ## Invariants / Business Rules
 - **INV-RP-1 (exactly-once liveness):** At most one `Payment Requested` event is ever recorded
-  per `orderId`. The processor's decision to act is driven by an order's *presence* in
-  `Payments To Request` — once `Payment Requested` lands, `INV-PTR-2` removes the order from that
-  queue, so the processor structurally cannot re-select it on a later poll. Idempotency is
-  enforced on the read side (the to-do list draining), not by deduplicating on `paymentId` at
-  write time — the command's `paymentId` is the processor's own idempotency key for retrying its
-  *own* in-flight attempt, not a dedupe key across separate decisions.
+  per `orderId`.
+  - The processor's decision to act is driven by an order's *presence* in `Payments To Request`
+    — once `Payment Requested` lands, `INV-PTR-2` removes the order from that queue, so the
+    processor structurally cannot re-select it on a later poll.
+  - Idempotency is enforced on the read side (the to-do list draining), not by deduplicating on
+    `paymentId` at write time — the command's `paymentId` is the processor's own idempotency
+    key for retrying its *own* in-flight attempt, not a dedupe key across separate decisions.
 - **INV-RP-2 (amount fidelity):** `Request Payment.amountCents` must equal the order's own
-  `totalCents` as carried on its `Payments To Request` entry — traced back to `Order Placed`. The
-  processor is a pure conduit for this value; it never recomputes, discounts, or rounds it.
+  `totalCents` as carried on its `Payments To Request` entry — traced back to `Order Placed`.
+  - The processor is a pure conduit for this value; it never recomputes, discounts, or rounds
+    it.
 - **INV-RP-3 (no direct recording):** The payment processor/provider integration never records
-  `Payment Requested` (or any event) directly. Every outbound request funnels through the
-  `Request Payment` command, so the same validation and idempotency guarantees apply whether the
-  request was triggered by the normal automation path or replayed for recovery. There is no
-  back-door write path from the provider-facing code straight into the event stream.
+  `Payment Requested` (or any event) directly.
+  - Every outbound request funnels through the `Request Payment` command, so the same
+    validation and idempotency guarantees apply whether the request was triggered by the
+    normal automation path or replayed for recovery.
+  - There is no back-door write path from the provider-facing code straight into the event
+    stream.
 
 ## Scenarios (Given / When / Then)
-- **Happy path** — Given order `O1` (totalCents `5000`) is present in `Payments To Request`, When
-  the `Payment Requester` processor selects it and issues `Request Payment` (orderId `O1`,
-  amountCents `5000`), Then `Payment Requested` is recorded for `O1` and `O1` is removed from
-  `Payments To Request`.
-- **Exactly-once under re-poll (INV-RP-1)** — Given `O1` has already produced a `Payment Requested`
-  event (and so is no longer in `Payments To Request`), When the processor's next poll runs over
-  the queue, Then `O1` is not present to select and no second `Request Payment` command is issued
-  for it.
-- **Amount fidelity (INV-RP-2)** — Given `O1`'s `Payments To Request` entry carries totalCents
-  `5000`, When the processor issues `Request Payment` for `O1`, Then `amountCents` on that command
-  (and the resulting event) is `5000` — never a different value.
-- **No back-door writes (INV-RP-3)** — Given the payment provider integration code path, When it
-  needs to reflect that a request went out, Then it does so only by having already gone through
-  `Request Payment` — there is no code path that appends `Payment Requested` without that command
-  having run first.
+- **Happy path**
+  - **Given:** order `O1` (totalCents `5000`) is present in `Payments To Request`
+  - **When:** the `Payment Requester` processor selects it and issues `Request Payment`
+    (orderId `O1`, amountCents `5000`)
+  - **Then:** `Payment Requested` is recorded for `O1` and `O1` is removed from
+    `Payments To Request`.
+- **Exactly-once under re-poll (INV-RP-1)**
+  - **Given:** `O1` has already produced a `Payment Requested` event (and so is no longer in
+    `Payments To Request`)
+  - **When:** the processor's next poll runs over the queue
+  - **Then:** `O1` is not present to select and no second `Request Payment` command is issued
+    for it.
+- **Amount fidelity (INV-RP-2)**
+  - **Given:** `O1`'s `Payments To Request` entry carries totalCents `5000`
+  - **When:** the processor issues `Request Payment` for `O1`
+  - **Then:** `amountCents` on that command (and the resulting event) is `5000` — never a
+    different value.
+- **No back-door writes (INV-RP-3)**
+  - **Given:** the payment provider integration code path
+  - **When:** it needs to reflect that a request went out
+  - **Then:** it does so only by having already gone through `Request Payment` — there is no
+    code path that appends `Payment Requested` without that command having run first.
 
 ## Alternate & Error Flows
 - **Processor crash mid-cycle:** if the processor crashes after issuing `Request Payment` but

@@ -47,46 +47,59 @@ the repeated `Open Orders` instance).
 
 ## Invariants / Business Rules
 - **INV-CO-1 (v2): an order can be cancelled before `Payment Captured` exists for it, or within
-  the 24-hour grace window after capture.** The payment provider auto-voids captures inside its
-  settlement window, so a cancel within 24h of `capturedAt` needs no refund flow; beyond that
-  window, `Cancel Order` is **rejected** — money has genuinely moved, and post-settlement
-  cancellation belongs to a separate (unmodeled, future) refund/return path, not this command.
-  *(v1 said "only BEFORE capture, ever"; the grace window shipped in
-  [PR #17](https://github.com/milehimikey/meridian-goods/pull/17) ahead of this doc — the
-  2026-08-23 conformance run caught the drift and the ratifier ruled the behavior intentional.
-  See `## Delta` and `conformance/2026-08-23-report.md`.)*
+  the 24-hour grace window after capture.**
+  - The payment provider auto-voids captures inside its settlement window, so a cancel within
+    24h of `capturedAt` needs no refund flow; beyond that window, `Cancel Order` is **rejected**
+    — money has genuinely moved, and post-settlement cancellation belongs to a separate
+    (unmodeled, future) refund/return path, not this command.
+  - *(v1 said "only BEFORE capture, ever"; the grace window shipped in
+    [PR #17](https://github.com/milehimikey/meridian-goods/pull/17) ahead of this doc — the
+    2026-08-23 conformance run caught the drift and the ratifier ruled the behavior intentional.
+    See `## Delta` and `conformance/2026-08-23-report.md`.)*
 - **INV-CO-2 (idempotent cancel):** A `Cancel Order` command for an `orderId` that already has an
   `Order Cancelled` event recorded is a **no-op**: no second event is appended, and the command
   returns the original cancellation's result (its original `cancelledAt` stands, never overwritten
-  by a later duplicate click's timestamp). Design call: cancellation is a one-way action a customer
-  is asking for, not a payload the tool needs to compare for conflict (unlike `Place Order`'s
-  INV-PO-1, there's no meaningfully different "conflicting" cancel payload to reject) — the second
-  and any later `Cancel Order` for an already-cancelled order is always a harmless retry, so it is
-  always treated as one rather than rejected.
+  by a later duplicate click's timestamp).
+  - Design call: cancellation is a one-way action a customer is asking for, not a payload the
+    tool needs to compare for conflict (unlike `Place Order`'s INV-PO-1, there's no meaningfully
+    different "conflicting" cancel payload to reject) — the second and any later `Cancel Order`
+    for an already-cancelled order is always a harmless retry, so it is always treated as one
+    rather than rejected.
 
 ## Scenarios (Given / When / Then)
-- **Happy path** — Given `Order Placed` exists for `orderId: O1` / `customerId: C1` and no
-  `Payment Captured` has been recorded for `O1`, When `C1` submits `Cancel Order` for `O1`, Then
-  `Order Cancelled` is recorded with `orderId: O1`, `customerId: C1`, and a server-assigned
-  `cancelledAt`; `O1` disappears from (or is marked cancelled on) the `Open Orders` staff board via
-  `Open Orders — cancelled`.
-- **Cancel within the grace window (INV-CO-1 v2)** — Given `Order Placed` exists for `orderId: O1`
-  and `Payment Captured` was recorded for `O1` less than 24 hours ago, When `C1` submits
-  `Cancel Order` for `O1`, Then `Order Cancelled` is recorded (the provider auto-voids the
-  capture inside its settlement window).
-- **Rejected — captured beyond the grace window (INV-CO-1 v2)** — Given `Order Placed` exists for
-  `orderId: O1` and `Payment Captured` was recorded for `O1` more than 24 hours ago, When `C1`
-  submits `Cancel Order` for `O1`, Then the command is rejected as too-late-to-cancel and no
-  `Order Cancelled` event is recorded.
-- **Idempotent retry (INV-CO-2)** — Given `Order Cancelled` already exists for `orderId: O1`, When
-  `C1` submits `Cancel Order` for `O1` again (double-click, retried request), Then no second
-  `Order Cancelled` event is recorded and the command returns the original cancellation's result.
-- **Rejected — wrong customer** — Given `Order Placed` exists for `orderId: O1` / `customerId: C1`,
-  When a different customer `C2` submits `Cancel Order` for `O1`, Then the command is rejected as
-  unauthorized and no `Order Cancelled` event is recorded.
-- **Rejected — unknown order** — Given no `Order Placed` event exists for `orderId: O9`, When
-  `Cancel Order` is submitted for `O9`, Then the command is rejected as unknown and no event is
-  recorded.
+- **Happy path**
+  - **Given:** `Order Placed` exists for `orderId: O1` / `customerId: C1` and no
+    `Payment Captured` has been recorded for `O1`
+  - **When:** `C1` submits `Cancel Order` for `O1`
+  - **Then:** `Order Cancelled` is recorded with `orderId: O1`, `customerId: C1`, and a
+    server-assigned `cancelledAt`; `O1` disappears from (or is marked cancelled on) the
+    `Open Orders` staff board via `Open Orders — cancelled`.
+- **Cancel within the grace window (INV-CO-1 v2)**
+  - **Given:** `Order Placed` exists for `orderId: O1` and `Payment Captured` was recorded for
+    `O1` less than 24 hours ago
+  - **When:** `C1` submits `Cancel Order` for `O1`
+  - **Then:** `Order Cancelled` is recorded (the provider auto-voids the capture inside its
+    settlement window).
+- **Rejected — captured beyond the grace window (INV-CO-1 v2)**
+  - **Given:** `Order Placed` exists for `orderId: O1` and `Payment Captured` was recorded for
+    `O1` more than 24 hours ago
+  - **When:** `C1` submits `Cancel Order` for `O1`
+  - **Then:** the command is rejected as too-late-to-cancel and no `Order Cancelled` event is
+    recorded.
+- **Idempotent retry (INV-CO-2)**
+  - **Given:** `Order Cancelled` already exists for `orderId: O1`
+  - **When:** `C1` submits `Cancel Order` for `O1` again (double-click, retried request)
+  - **Then:** no second `Order Cancelled` event is recorded and the command returns the
+    original cancellation's result.
+- **Rejected — wrong customer**
+  - **Given:** `Order Placed` exists for `orderId: O1` / `customerId: C1`
+  - **When:** a different customer `C2` submits `Cancel Order` for `O1`
+  - **Then:** the command is rejected as unauthorized and no `Order Cancelled` event is
+    recorded.
+- **Rejected — unknown order**
+  - **Given:** no `Order Placed` event exists for `orderId: O9`
+  - **When:** `Cancel Order` is submitted for `O9`
+  - **Then:** the command is rejected as unknown and no event is recorded.
 
 ## Delta
 
