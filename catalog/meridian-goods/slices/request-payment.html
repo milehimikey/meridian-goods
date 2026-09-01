@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Request Payment — Meridian Goods — Ordering</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0; font-family: system-ui, sans-serif; line-height: 1.5;
+      background: #fafafa; color: #1f2933;
+    }
+    header {
+      padding: .75rem 1.25rem; background: #1f2933; color: #fff;
+    }
+    header a { color: #fff; text-decoration: none; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #ddd; font-size: 14px; }
+    th { font-weight: 600; background: #f0f2f5; }
+    .status { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: 12px; background: #e4e7eb; }
+    .pattern { font-size: 12px; color: #52606d; }
+    /* Fixed-height frame, not a width-driven one: a slice diagram is often
+       narrow and tall relative to the full model's wide/short diagram, so
+       sizing by width alone would blow a narrow one's height up hugely.
+       object-fit doesn't apply to <object> the way it does <img> (needed here,
+       not <img>, so the SVG's clickable note links keep working) — giving it a
+       DEFINITE width AND height together stretches it non-uniformly, distorting
+       the aspect ratio instead of preserving it. width:auto + height:100% +
+       max-width:100% instead sizes it from its own intrinsic aspect ratio
+       (capped, never overflowing the frame); the flex centers it horizontally. */
+    .diagram-frame {
+      height: 420px; border: 1px solid #ddd; margin: 1rem 0; overflow: hidden; background: #fff;
+      display: flex; align-items: flex-start; justify-content: center;
+    }
+    object.diagram { width: auto; height: 100%; max-width: 100%; }
+    .full-diagram-link { margin: 0 0 1rem; font-size: 13px; }
+    .doc { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #ddd; }
+    .doc h1 { font-size: 1.3rem; }
+    .doc h2 { font-size: 1.05rem; }
+    .no-doc { color: #7b8794; font-style: italic; }
+    code { background: #eee; padding: .05rem .3rem; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <header><a href="../../index.html">Event Model Catalog</a></header>
+  <main>
+    <p><a href="../../index.html">&larr; Meridian Goods — Ordering</a></p>
+    <h1>Request Payment</h1>
+    <p class="pattern">Automation · <span class="status">implemented</span></p>
+    <div class="diagram-frame"><object class="diagram" type="image/svg+xml" data="request-payment.svg"></object></div>
+    <p class="full-diagram-link"><a href="../diagram.svg">View full model diagram &rarr;</a></p>
+    <table>
+      <thead><tr><th>Kind</th><th>Name</th><th>Detail</th></tr></thead>
+      <tbody>
+      <tr id="request-payment/processor.payment-requester">
+        <td>processor</td>
+        <td>Payment Requester</td>
+        <td>from Payments To Request</td>
+      </tr>
+      <tr id="request-payment/command.request-payment">
+        <td>command</td>
+        <td>Request Payment</td>
+        <td>{ paymentId: UUID, orderId: UUID, amountCents: Int, requestedAt: DateTime }</td>
+      </tr>
+      <tr id="request-payment/event.payment-requested">
+        <td>event</td>
+        <td>Payment Requested</td>
+        <td>@Payments &middot; { paymentId: UUID, orderId: UUID, amountCents: Int, requestedAt: DateTime }</td>
+      </tr>
+      </tbody>
+    </table>
+    <div class="doc"><h1>Slice: Request Payment</h1>
+<p><img src="./request-payment.svg" alt="Diagram"></p>
+<h2>Intent</h2>
+<p>Once an order exists, Meridian Goods must ask the payment provider to collect funds for it —
+without a human triggering that call, and without ever asking twice for the same order. This
+slice is the automation half of that flow: it watches the <code>Payments To Request</code> to-do list and
+turns each entry into exactly one outgoing payment request.</p>
+<h2>Trigger &amp; Actor</h2>
+<p>Internally triggered. The <code>Payment Requester</code> processor watches the <code>Payments To Request</code> view
+(built in the slice before, from <code>Order Placed</code>) and, for each order it finds there, issues the
+<code>Request Payment</code> command. The processor never records <code>Payment Requested</code> itself — the command it
+triggers does.</p>
+<h2>Command / Input</h2>
+<p><strong>Command:</strong> <code>Request Payment</code></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Rules / Validation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>paymentId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Minted by the processor when it decides to act — the idempotency key for this payment attempt; stable across retries of the <em>same</em> decision.</td>
+</tr>
+<tr>
+<td>orderId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Must name an order present in <code>Payments To Request</code> at the time the processor acts.</td>
+</tr>
+<tr>
+<td>amountCents</td>
+<td>Int</td>
+<td>yes</td>
+<td>Must equal the <code>totalCents</code> carried on that order&#39;s <code>Payments To Request</code> entry (INV-RP-2) — the processor never invents or adjusts the amount.</td>
+</tr>
+<tr>
+<td>requestedAt</td>
+<td>DateTime</td>
+<td>yes</td>
+<td>Stamped by the processor at decision time — the automation is the command&#39;s author, so it supplies the request time (see <code>domain-decisions.md</code>, timestamp-origin convention).</td>
+</tr>
+</tbody></table>
+<h2>Trigger</h2>
+<p><strong>Triggered by:</strong> processor <code>Payment Requester</code>, also in this slice.</p>
+<h2>Event(s) Emitted</h2>
+<p><strong>Event:</strong> <code>Payment Requested</code> → context <code>Payments</code>
+<strong>Read by:</strong> <code>Payments To Request</code> (removed — INV-PTR-2, <code>slices/payments-to-request.md</code>) and
+<code>Order Status</code> (the customer-facing view, in the <code>Order Status</code> slice).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Immutable Fact?</th>
+<th>Source / Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>paymentId</td>
+<td>UUID</td>
+<td>yes</td>
+<td><code>Request Payment.paymentId</code></td>
+</tr>
+<tr>
+<td>orderId</td>
+<td>UUID</td>
+<td>yes</td>
+<td><code>Request Payment.orderId</code></td>
+</tr>
+<tr>
+<td>amountCents</td>
+<td>Int</td>
+<td>yes</td>
+<td><code>Request Payment.amountCents</code></td>
+</tr>
+<tr>
+<td>requestedAt</td>
+<td>DateTime</td>
+<td>yes</td>
+<td>Stamped by the issuing automation: <code>Payment Requester</code> is the command&#39;s author, so it legitimately supplies the request time on <code>Request Payment.requestedAt</code> — carried on both command and event (see <code>domain-decisions.md</code>, timestamp-origin convention).</td>
+</tr>
+</tbody></table>
+<h2>Invariants / Business Rules</h2>
+<ul>
+<li><strong>INV-RP-1 (exactly-once liveness):</strong> At most one <code>Payment Requested</code> event is ever recorded
+per <code>orderId</code>. The processor&#39;s decision to act is driven by an order&#39;s <em>presence</em> in
+<code>Payments To Request</code> — once <code>Payment Requested</code> lands, <code>INV-PTR-2</code> removes the order from that
+queue, so the processor structurally cannot re-select it on a later poll. Idempotency is
+enforced on the read side (the to-do list draining), not by deduplicating on <code>paymentId</code> at
+write time — the command&#39;s <code>paymentId</code> is the processor&#39;s own idempotency key for retrying its
+<em>own</em> in-flight attempt, not a dedupe key across separate decisions.</li>
+<li><strong>INV-RP-2 (amount fidelity):</strong> <code>Request Payment.amountCents</code> must equal the order&#39;s own
+<code>totalCents</code> as carried on its <code>Payments To Request</code> entry — traced back to <code>Order Placed</code>. The
+processor is a pure conduit for this value; it never recomputes, discounts, or rounds it.</li>
+<li><strong>INV-RP-3 (no direct recording):</strong> The payment processor/provider integration never records
+<code>Payment Requested</code> (or any event) directly. Every outbound request funnels through the
+<code>Request Payment</code> command, so the same validation and idempotency guarantees apply whether the
+request was triggered by the normal automation path or replayed for recovery. There is no
+back-door write path from the provider-facing code straight into the event stream.</li>
+</ul>
+<h2>Scenarios (Given / When / Then)</h2>
+<ul>
+<li><strong>Happy path</strong> — Given order <code>O1</code> (totalCents <code>5000</code>) is present in <code>Payments To Request</code>, When
+the <code>Payment Requester</code> processor selects it and issues <code>Request Payment</code> (orderId <code>O1</code>,
+amountCents <code>5000</code>), Then <code>Payment Requested</code> is recorded for <code>O1</code> and <code>O1</code> is removed from
+<code>Payments To Request</code>.</li>
+<li><strong>Exactly-once under re-poll (INV-RP-1)</strong> — Given <code>O1</code> has already produced a <code>Payment Requested</code>
+event (and so is no longer in <code>Payments To Request</code>), When the processor&#39;s next poll runs over
+the queue, Then <code>O1</code> is not present to select and no second <code>Request Payment</code> command is issued
+for it.</li>
+<li><strong>Amount fidelity (INV-RP-2)</strong> — Given <code>O1</code>&#39;s <code>Payments To Request</code> entry carries totalCents
+<code>5000</code>, When the processor issues <code>Request Payment</code> for <code>O1</code>, Then <code>amountCents</code> on that command
+(and the resulting event) is <code>5000</code> — never a different value.</li>
+<li><strong>No back-door writes (INV-RP-3)</strong> — Given the payment provider integration code path, When it
+needs to reflect that a request went out, Then it does so only by having already gone through
+<code>Request Payment</code> — there is no code path that appends <code>Payment Requested</code> without that command
+having run first.</li>
+</ul>
+<h2>Alternate &amp; Error Flows</h2>
+<ul>
+<li><strong>Processor crash mid-cycle:</strong> if the processor crashes after issuing <code>Request Payment</code> but
+before its own bookkeeping completes, the next run must not re-issue the command for the same
+order — covered by INV-RP-1, since the order is already absent from <code>Payments To Request</code> once
+the event lands.</li>
+<li><strong>Idempotent command retry:</strong> if the <em>same</em> in-flight <code>Request Payment</code> (same <code>paymentId</code>) is
+retried due to a transport-level timeout, the command handler treats a repeat of an already-
+recorded <code>paymentId</code> as a no-op rather than a second event — this is the processor&#39;s own
+retry-safety, distinct from INV-RP-1&#39;s cross-decision exactly-once guarantee.</li>
+<li><strong>Provider call failure:</strong> a downstream failure to actually reach the payment provider is an
+implementation concern of the command handler (retry/backoff), not modeled as a rejection here —
+<code>Request Payment</code> records the <em>request</em> being made, not the provider&#39;s acknowledgment of it.</li>
+</ul>
+<h2>Non-Functional Requirements</h2>
+<ul>
+<li><strong>Security / authz:</strong> none beyond internal system trust — this command is issued only by the
+<code>Payment Requester</code> processor, never by an external caller or <code>ui</code>.</li>
+<li><strong>PII &amp; compliance:</strong> none beyond the order total already carried by <code>Payments To Request</code>; no
+card/account data flows through this command (payment method details are the provider
+integration&#39;s concern, not this model&#39;s).</li>
+<li><strong>Performance / SLA:</strong> the automation&#39;s poll/reaction latency bounds how quickly an order moves
+from &quot;placed&quot; to &quot;payment requested&quot; — no hard SLA modeled here, but this is the responsiveness
+budget referenced by <code>slices/payments-to-request.md</code>&#39;s freshness note.</li>
+</ul>
+<h2>Dependencies &amp; Read Models Affected</h2>
+<ul>
+<li><strong>Upstream events this slice relies on:</strong> none directly — it reacts to the <code>Payments To Request</code>
+view, not to <code>Order Placed</code> itself.</li>
+<li><strong>Downstream read models / slices affected:</strong> <code>Payments To Request</code> (drains via INV-PTR-2),
+<code>Order Status</code> (customer-facing, reads <code>Payment Requested</code>).</li>
+</ul>
+<h2>Open Questions</h2>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Should the automation batch multiple due orders into one provider call? Resolved: no — one
+<code>Request Payment</code> command per order, matching this slice&#39;s one-command-per-decision shape;
+batching (if ever needed) would be a provider-integration optimization behind the same command.</li>
+<li><input checked="" disabled="" type="checkbox"> What happens if the provider rejects the request outright (not just fails to respond)?
+Resolved: out of scope for this model revision — this model only carries a success event
+(<code>Payment Captured</code>, via <code>Record Payment Result</code>) for the provider&#39;s response; a decline/reject
+outcome would need its own event and is left as a known future extension, not fabricated here.</li>
+</ul>
+</div>
+  </main>
+</body>
+</html>
