@@ -1,10 +1,26 @@
 # Meridian Goods
 
+![em status](status-badge.svg)
+
 Meridian Goods is the [Slicewright](https://github.com/milehimikey/slicewright)
 demo: a small ecommerce ordering system, event-modeled and event-sourced,
 built slice by slice under the `em` contract — one slice, one branch, one PR,
 each ratified before it was built. It's the proof artifact, not the pitch;
 the methodology and its narrative live in the Slicewright repo linked above.
+
+## Status at a glance
+<!-- Generated — run `em status meridian-goods.em --tests src/test --md` to refresh the table,
+     and `em status meridian-goods.em --tests src/test --badge -o status-badge.svg` to refresh
+     the badge above; never hand-edit between the markers. -->
+<!-- GENERATED:status:start -->
+| Metric | Value |
+|---|---|
+| Slices | 8/8 implemented (0 ready-to-implement, 0 reviewed, 0 draft) |
+| Invariants | 20/20 covered |
+| Open issues | 0 |
+| Open questions | 0 unchecked |
+| Last conformed | `8f12ed8` — 10 commits and 0 slice-PRs behind HEAD |
+<!-- GENERATED:status:end -->
 
 ## How to read this repo
 
@@ -95,16 +111,16 @@ never connected to one another.
      `em slice index meridian-goods.em` to (re)write the table below from the model and its
      slice docs; never hand-edit between the markers. -->
 <!-- GENERATED:slices:start -->
-| # | Slice | Pattern | Status | Implemented in | Design doc |
-|---|-------|---------|--------|----------------|------------|
-| 1 | Place Order | State Change | implemented | https://github.com/milehimikey/meridian-goods/pull/7 | [slices/place-order.md](slices/place-order.md) |
-| 2 | Payments To Request | State View | implemented | https://github.com/milehimikey/meridian-goods/pull/8 | [slices/payments-to-request.md](slices/payments-to-request.md) |
-| 3 | Request Payment | Automation | implemented | https://github.com/milehimikey/meridian-goods/pull/10 | [slices/request-payment.md](slices/request-payment.md) |
-| 4 | Record Payment Result | Translation | implemented | https://github.com/milehimikey/meridian-goods/pull/12 | [slices/record-payment-result.md](slices/record-payment-result.md) |
-| 5 | Open Orders | State View | implemented | https://github.com/milehimikey/meridian-goods/pull/9 | [slices/open-orders.md](slices/open-orders.md) |
-| 6 | Order Status | State View | implemented | https://github.com/milehimikey/meridian-goods/pull/11 | [slices/order-status.md](slices/order-status.md) |
-| 7 | Cancel Order | State Change | implemented | https://github.com/milehimikey/meridian-goods/pull/17 | [slices/cancel-order.md](slices/cancel-order.md) |
-| 8 | Open Orders — cancelled | State View | implemented | https://github.com/milehimikey/meridian-goods/pull/16 | [slices/open-orders-cancelled.md](slices/open-orders-cancelled.md) |
+| # | Slice | Pattern | Status | Ratified by | Owner | Tracking | Implemented in | Design doc |
+|---|-------|---------|--------|-------------|-------|----------|----------------|------------|
+| 1 | Place Order | State Change | implemented | — | — | — | https://github.com/milehimikey/meridian-goods/pull/7 | [slices/place-order.md](slices/place-order.md) |
+| 2 | Payments To Request | State View | implemented | — | — | — | https://github.com/milehimikey/meridian-goods/pull/8 | [slices/payments-to-request.md](slices/payments-to-request.md) |
+| 3 | Request Payment | Automation | implemented | — | — | — | https://github.com/milehimikey/meridian-goods/pull/10 | [slices/request-payment.md](slices/request-payment.md) |
+| 4 | Record Payment Result | Translation | implemented | — | — | — | https://github.com/milehimikey/meridian-goods/pull/12 | [slices/record-payment-result.md](slices/record-payment-result.md) |
+| 5 | Open Orders | State View | implemented | — | — | — | https://github.com/milehimikey/meridian-goods/pull/9 | [slices/open-orders.md](slices/open-orders.md) |
+| 6 | Order Status | State View | implemented | — | — | — | https://github.com/milehimikey/meridian-goods/pull/11 | [slices/order-status.md](slices/order-status.md) |
+| 7 | Cancel Order | State Change | implemented | — | — | — | https://github.com/milehimikey/meridian-goods/pull/17 | [slices/cancel-order.md](slices/cancel-order.md) |
+| 8 | Open Orders — cancelled | State View | implemented | — | — | — | https://github.com/milehimikey/meridian-goods/pull/16 | [slices/open-orders-cancelled.md](slices/open-orders-cancelled.md) |
 <!-- GENERATED:slices:end -->
 
 ## Status

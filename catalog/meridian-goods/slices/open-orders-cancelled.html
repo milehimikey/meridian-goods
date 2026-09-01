@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Open Orders — cancelled — Meridian Goods — Ordering</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0; font-family: system-ui, sans-serif; line-height: 1.5;
+      background: #fafafa; color: #1f2933;
+    }
+    header {
+      padding: .75rem 1.25rem; background: #1f2933; color: #fff;
+    }
+    header a { color: #fff; text-decoration: none; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #ddd; font-size: 14px; }
+    th { font-weight: 600; background: #f0f2f5; }
+    .status { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: 12px; background: #e4e7eb; }
+    .pattern { font-size: 12px; color: #52606d; }
+    /* Fixed-height frame, not a width-driven one: a slice diagram is often
+       narrow and tall relative to the full model's wide/short diagram, so
+       sizing by width alone would blow a narrow one's height up hugely.
+       object-fit doesn't apply to <object> the way it does <img> (needed here,
+       not <img>, so the SVG's clickable note links keep working) — giving it a
+       DEFINITE width AND height together stretches it non-uniformly, distorting
+       the aspect ratio instead of preserving it. width:auto + height:100% +
+       max-width:100% instead sizes it from its own intrinsic aspect ratio
+       (capped, never overflowing the frame); the flex centers it horizontally. */
+    .diagram-frame {
+      height: 420px; border: 1px solid #ddd; margin: 1rem 0; overflow: hidden; background: #fff;
+      display: flex; align-items: flex-start; justify-content: center;
+    }
+    object.diagram { width: auto; height: 100%; max-width: 100%; }
+    .full-diagram-link { margin: 0 0 1rem; font-size: 13px; }
+    .doc { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #ddd; }
+    .doc h1 { font-size: 1.3rem; }
+    .doc h2 { font-size: 1.05rem; }
+    .no-doc { color: #7b8794; font-style: italic; }
+    code { background: #eee; padding: .05rem .3rem; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <header><a href="../../index.html">Event Model Catalog</a></header>
+  <main>
+    <p><a href="../../index.html">&larr; Meridian Goods — Ordering</a></p>
+    <h1>Open Orders — cancelled</h1>
+    <p class="pattern">State View · <span class="status">implemented</span></p>
+    <div class="diagram-frame"><object class="diagram" type="image/svg+xml" data="open-orders-cancelled.svg"></object></div>
+    <p class="full-diagram-link"><a href="../diagram.svg">View full model diagram &rarr;</a></p>
+    <table>
+      <thead><tr><th>Kind</th><th>Name</th><th>Detail</th></tr></thead>
+      <tbody>
+      <tr id="open-orders-cancelled/view.open-orders">
+        <td>view</td>
+        <td>Open Orders</td>
+        <td>from Order Cancelled &middot; again &middot; { orderId: UUID, customerId: UUID, cancelledAt: DateTime }</td>
+      </tr>
+      <tr id="open-orders-cancelled/ui.fulfillment-dashboard">
+        <td>ui</td>
+        <td>Fulfillment Dashboard</td>
+        <td>@Staff</td>
+      </tr>
+      </tbody>
+    </table>
+    <div class="doc"><h1>Slice: Open Orders — cancelled</h1>
+<p><img src="./open-orders-cancelled.svg" alt="Diagram"></p>
+<h2>Intent</h2>
+<p>Once a customer can self-serve cancel (<code>slices/cancel-order.md</code>), the staff fulfillment board
+needs to stop showing that order as something to prepare and ship. This slice is a <strong>later
+instance of the same <code>Open Orders</code> read model</strong> (<code>view Open Orders again from &quot;Order Cancelled&quot;</code>)
+— not a new view. It exists to demonstrate the repeated-view rule live: this instance and the
+earlier <code>Open Orders</code> instance (<code>slices/open-orders.md</code>) share a name and are never connected to
+one another; continuity is implied only by that shared name, and the event each instance folds is
+what shows the view changing over time.</p>
+<h2>Trigger &amp; Actor</h2>
+<p>No user action triggers this slice directly — it&#39;s a projection that updates automatically
+whenever <code>Order Cancelled</code> (<code>slices/cancel-order.md</code>) is recorded. <strong>Staff</strong> consult the same
+<strong>Fulfillment Dashboard</strong> on demand; this slice owns its own <code>ui</code> element per the repeated-view
+rule (each instance gets its own consumer), even though staff experience it as one continuously
+updating board, not two.</p>
+<h2>Read Model / View</h2>
+<ul>
+<li><strong>View:</strong> <code>Open Orders</code> (repeated instance) built from event: <code>Order Cancelled</code></li>
+<li><strong>Consumed by:</strong> <code>Fulfillment Dashboard</code> @Staff (this slice&#39;s own <code>ui</code>, distinct from the earlier
+instance&#39;s <code>ui</code> element, per the repeated-view rule)</li>
+<li><strong>Freshness / consistency expectation:</strong> eventual — same as the earlier instance
+(<code>slices/open-orders.md</code>): staff read a projection that lags event recording by however long the
+projector takes to catch up.</li>
+</ul>
+<h2>Invariants / Business Rules</h2>
+<ul>
+<li><strong>INV-OOC-1:</strong> The fold removes (or marks) the cancelled order from the staff board: when
+<code>Order Cancelled</code> is projected for an <code>orderId</code> with an existing row (from the earlier
+<code>Order Placed</code> fold), that row is removed from the &quot;needs fulfillment&quot; board — a cancelled order
+is no longer something staff should prepare or ship. Design call: this doc models the fold as a
+<strong>removal</strong>, not a &quot;cancelled&quot; status flag left visible on the board, because an already-cancelled
+order carries no further fulfillment action for staff to take; a full order-history view (that
+would want to keep cancelled rows visible with a status) is a distinct, unmodeled read model.</li>
+<li><strong>INV-OOC-2 (idempotent):</strong> Re-projecting the same <code>Order Cancelled</code> event (redelivery, replay,
+projector restart) never re-removes an already-removed row, errors, or has any additional effect
+— removal is idempotent the same way the earlier instance&#39;s fold is (<code>slices/open-orders.md</code>&#39;s
+INV-OO-1).</li>
+</ul>
+<h2>Scenarios (Given / When / Then)</h2>
+<ul>
+<li><strong><code>Order Cancelled</code> lands for an open order</strong> — Given an <code>Open Orders</code> row exists for <code>orderId</code>
+<code>O1</code> (from an earlier <code>Order Placed</code> fold, per <code>slices/open-orders.md</code>), When <code>Order Cancelled</code>
+is projected for <code>O1</code>, Then the <code>O1</code> row is removed from the fulfillment board.</li>
+<li><strong>Redelivered event (INV-OOC-2)</strong> — Given the <code>O1</code> row has already been removed by a prior
+<code>Order Cancelled</code> projection, When that same event is redelivered to the projector (at-least-once
+delivery, replay), Then nothing further happens — no error, no second effect.</li>
+<li><strong>Cancellation before capture reaches the board</strong> — Given <code>O1</code> was open (no <code>capturedAt</code> yet)
+when it was cancelled, When <code>Order Cancelled</code> is projected, Then <code>O1</code> is removed the same way as
+a captured order would be — this fold doesn&#39;t distinguish by the row&#39;s prior <code>capturedAt</code> state,
+since INV-CO-1 already guarantees <code>Order Cancelled</code> is never recorded once payment has captured.</li>
+</ul>
+<h2>Alternate &amp; Error Flows</h2>
+<ul>
+<li><strong>Out-of-order delivery:</strong> if <code>Order Cancelled</code> were somehow projected before its order&#39;s
+<code>Order Placed</code> (not expected in-order, but a projector should be defensive), the fold has no row
+to remove yet; it records that the order is cancelled so the eventual <code>Order Placed</code> projection
+can skip creating a row for it, rather than erroring on a missing row.</li>
+<li><strong>Idempotency mechanism:</strong> the projector folds by <code>orderId</code>, the same key <code>slices/open-orders.md</code>
+uses, so replay/redelivery is naturally idempotent (INV-OOC-2) as long as &quot;remove&quot; is itself an
+idempotent operation (removing an already-absent row is a no-op, not an error).</li>
+</ul>
+<h2>Non-Functional Requirements</h2>
+<ul>
+<li><strong>Security / authz:</strong> visible to Staff only (fulfillment/ops role); not exposed to Customers —
+same as the earlier instance.</li>
+<li><strong>PII &amp; compliance:</strong> carries only <code>orderId</code> and <code>customerId</code> (a reference, not raw PII) as read
+from <code>Order Cancelled</code>; no payment instrument data.</li>
+<li><strong>Performance / SLA:</strong> none beyond ordinary dashboard-refresh latency for this demo.</li>
+</ul>
+<h2>Dependencies &amp; Read Models Affected</h2>
+<ul>
+<li><strong>Upstream events this slice relies on:</strong> <code>Order Cancelled</code> (<code>slices/cancel-order.md</code>).</li>
+<li><strong>Downstream read models / slices affected:</strong> none — this is a terminal read model for the Staff
+persona, the same as the earlier <code>Open Orders</code> instance.</li>
+</ul>
+<h2>Open Questions</h2>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Does the base <code>Open Orders</code> view (<code>slices/open-orders.md</code>) need to change now that
+cancellation exists? <strong>Resolved:</strong> no — that doc&#39;s own Open Question already deferred
+cancellation explicitly and remains accurate as written; this repeated instance is the whole
+change, not an edit to the earlier one (see the Intent section above and
+<code>repeated-views-never-connect</code>).</li>
+</ul>
+</div>
+  </main>
+</body>
+</html>

@@ -37,27 +37,33 @@ updating board, not two.
 ## Invariants / Business Rules
 - **INV-OOC-1:** The fold removes (or marks) the cancelled order from the staff board: when
   `Order Cancelled` is projected for an `orderId` with an existing row (from the earlier
-  `Order Placed` fold), that row is removed from the "needs fulfillment" board — a cancelled order
-  is no longer something staff should prepare or ship. Design call: this doc models the fold as a
-  **removal**, not a "cancelled" status flag left visible on the board, because an already-cancelled
-  order carries no further fulfillment action for staff to take; a full order-history view (that
-  would want to keep cancelled rows visible with a status) is a distinct, unmodeled read model.
+  `Order Placed` fold), that row is removed from the "needs fulfillment" board — a cancelled
+  order is no longer something staff should prepare or ship.
+  - Design call: this doc models the fold as a **removal**, not a "cancelled" status flag left
+    visible on the board, because an already-cancelled order carries no further fulfillment
+    action for staff to take; a full order-history view (that would want to keep cancelled rows
+    visible with a status) is a distinct, unmodeled read model.
 - **INV-OOC-2 (idempotent):** Re-projecting the same `Order Cancelled` event (redelivery, replay,
-  projector restart) never re-removes an already-removed row, errors, or has any additional effect
-  — removal is idempotent the same way the earlier instance's fold is (`slices/open-orders.md`'s
-  INV-OO-1).
+  projector restart) never re-removes an already-removed row, errors, or has any additional
+  effect — removal is idempotent the same way the earlier instance's fold is
+  (`slices/open-orders.md`'s INV-OO-1).
 
 ## Scenarios (Given / When / Then)
-- **`Order Cancelled` lands for an open order** — Given an `Open Orders` row exists for `orderId`
-  `O1` (from an earlier `Order Placed` fold, per `slices/open-orders.md`), When `Order Cancelled`
-  is projected for `O1`, Then the `O1` row is removed from the fulfillment board.
-- **Redelivered event (INV-OOC-2)** — Given the `O1` row has already been removed by a prior
-  `Order Cancelled` projection, When that same event is redelivered to the projector (at-least-once
-  delivery, replay), Then nothing further happens — no error, no second effect.
-- **Cancellation before capture reaches the board** — Given `O1` was open (no `capturedAt` yet)
-  when it was cancelled, When `Order Cancelled` is projected, Then `O1` is removed the same way as
-  a captured order would be — this fold doesn't distinguish by the row's prior `capturedAt` state,
-  since INV-CO-1 already guarantees `Order Cancelled` is never recorded once payment has captured.
+- **`Order Cancelled` lands for an open order**
+  - **Given:** an `Open Orders` row exists for `orderId` `O1` (from an earlier `Order Placed`
+    fold, per `slices/open-orders.md`)
+  - **When:** `Order Cancelled` is projected for `O1`
+  - **Then:** the `O1` row is removed from the fulfillment board.
+- **Redelivered event (INV-OOC-2)**
+  - **Given:** the `O1` row has already been removed by a prior `Order Cancelled` projection
+  - **When:** that same event is redelivered to the projector (at-least-once delivery, replay)
+  - **Then:** nothing further happens — no error, no second effect.
+- **Cancellation before capture reaches the board**
+  - **Given:** `O1` was open (no `capturedAt` yet) when it was cancelled
+  - **When:** `Order Cancelled` is projected
+  - **Then:** `O1` is removed the same way as a captured order would be — this fold doesn't
+    distinguish by the row's prior `capturedAt` state, since INV-CO-1 already guarantees
+    `Order Cancelled` is never recorded once payment has captured.
 
 ## Alternate & Error Flows
 - **Out-of-order delivery:** if `Order Cancelled` were somehow projected before its order's

@@ -3,7 +3,8 @@
 Read this **before doing any conform work**. It governs the `conform` phase: checking a
 **ratified** model (and its slice docs) against the codebase that is supposed to implement it,
 and reporting where they've drifted apart. Conform reuses `extract`'s sourcing/mode rules
-(`reference/extract.md`) for reading the target codebase rather than duplicating them — the
+(the `event-modeling-discover` skill's `reference/extract.md`) for reading the target codebase
+rather than duplicating them — the
 difference is what you do with what you find: extract *builds* a model from the code; conform
 *compares* code evidence against a model that already exists.
 
@@ -33,7 +34,7 @@ difference is what you do with what you find: extract *builds* a model from the 
 ## Preconditions
 
 1. A canonical `.em` model with a state file (`.event-modeling.md`), reachable the same way the
-   SKILL.md preconditions locate it.
+   shared preconditions locate it — see `../../event-modeling-shared/reference/operating-principles.md`.
 2. The slices you're about to check should be **implemented** — docs at `status: implemented`
    (or the status the user says corresponds to shipped code) for whichever slices are in scope.
    Checking a `draft` or `ready-to-implement` slice against code is a wasted walk — ratified or
@@ -57,11 +58,19 @@ named invariants, Given/When/Then scenarios). Conform checks all three surfaces 
 |---|---|---|---|
 | **Structural** — `.em` ↔ code | slices/elements/fields/flow | `em` (deterministic) | `em diff --json` on canonical vs. an as-is scratch model |
 | **Spec** — slice doc ↔ code | field rules not enforced, named invariants (`INV-*`) without enforcement/test sites, GWT scenarios without test sites | you (judgment) | per-slice evidence walk: each checkable claim in the doc mapped to a code/test site by name (`INV-CHK-4` → its enforcement site + its test) |
-| **Internal** — slice doc ↔ `.em` | the doc's frontmatter (`pattern:`, `status:`) or its Command/Event/Read Model sections and field tables disagreeing with the model's own elements/fields | you (judgment, v1) | cross-check the doc's structured sections against the slice's model elements |
+| **Internal** — slice doc ↔ `.em` | the doc's frontmatter `pattern:` or its Command/Event/Read Model sections and field tables disagreeing with the model's own elements/fields | `em` (deterministic) | `em validate`'s `doc-model-*` diagnostics, unconditionally in the default list |
 
-The internal surface is deterministically checkable in principle (structured doc sections +
-`{ fields }` blocks) — promoting it to an `em validate` rule is a natural follow-up; file it as
-its own issue rather than growing this phase's scope. For now it's agent judgment, same as spec.
+The internal surface is deterministically checked by `em validate` itself (MIL-124) — four
+diagnostics, always on, no flag needed: `doc-model-pattern-mismatch` (frontmatter `pattern:` vs.
+the model's own classification), `doc-model-element-not-in-model` / `doc-model-element-not-in-doc`
+(the doc's Command/Event/Read Model markers vs. the slice's actual elements, each direction), and
+`doc-model-field-mismatch` (a matched Command/Event's field table vs. the model's `{ fields }`
+block). Run `em validate <model-name>.em --json` and read each entry's `code`/`refs`/`message`
+(`docs/validation.md#doc-model-consistency` documents exactly what each one checks and
+when it stays silent — every rule is declare-gated, so a thin/draft doc doesn't nag); consume it
+the same way step 3 below consumes `em diff --json` — parse the structured findings, don't
+re-derive them by eye. Fold any that fire for an in-scope slice into that slice's internal-surface
+findings for step 4's classification, citing the diagnostic directly as the evidence.
 
 **Internal inconsistency is its own class, not drift.** When a doc and the `.em` disagree with
 each other, neither one is "the code" — you don't know which is stale. Report it as internal
@@ -171,11 +180,13 @@ For each slice in scope:
    granularity than the `.em` declares — e.g. event fields documented only in a slice doc's
    table — are checked on the **spec surface** against the doc, not smuggled into the
    structural diff.
-4. Cross-check the doc's header metadata and Command/Event/Read Model sections against the
-   slice's actual `.em` elements and fields for the internal surface — this doesn't need code
-   evidence, just doc-vs-`.em` reading. Narrative sections (Intent, Open Questions, notes)
-   count too when the contradiction is unambiguous — a stale sentence that flatly contradicts
-   the `.em` is an internal inconsistency; a vague or interpretable one is not a finding.
+4. Read the in-scope slice's `doc-model-*` findings straight off the `em validate --json` run
+   from precondition 4 (or re-run it here) — no code evidence needed, `em` already did the
+   doc-vs-`.em` comparison for frontmatter `pattern:` and the Command/Event/Read Model rosters
+   and field tables. The only judgment left on this surface is narrative sections `em validate`
+   can't parse (Intent, Open Questions, notes): count a contradiction here too when it's
+   unambiguous — a stale sentence that flatly contradicts the `.em` is an internal
+   inconsistency; a vague or interpretable one is not a finding.
 
 Do this for every in-scope slice before moving on to diffing. The evidence you record here is
 what every finding in the report will cite — file paths, not vibes.
@@ -229,7 +240,7 @@ structural findings) — a finding with no citation isn't ready to report.
 ### 5. Report + proposals
 
 Write `conformance/<YYYY-MM-DD>-report.md` in the model directory, from
-`templates/conformance-report.md`. For a real-drift or model-gap finding, propose a
+`../../event-modeling-shared/templates/conformance-report.md`. For a real-drift or model-gap finding, propose a
 ready-to-apply red note — `issue "conformance: <text>"` on the right element, written out in
 the report exactly as it should be pasted into the `.em` — when a model-side marker is the
 right fix; when the fix is purely doc wording (or the finding is an internal inconsistency
@@ -252,6 +263,21 @@ after walking the report with the user; a headless/scheduled run writes the repo
 the marker (nobody ratified the outcome), so the next run re-walks the same span — see
 `docs/ci.md`. If any proposals were ratified and applied, log a Decisions entry noting what
 changed and why.
+
+**Superseding the report you just walked (MIL-164).** Once the user has ruled on this run's
+findings, also run:
+
+```
+em conform-supersede <model-name>.em conformance/YYYY-MM-DD-report.md --as-of <target-repo revision> --findings <spec>
+```
+
+— stamping the report with a "superseded as of `<rev>`" banner so a later reader who finds it
+(a search hit, a bookmark, a link from an old PR description) sees immediately that its
+file:line citations describe an ancestor of the current model, not its current state. This is
+what keeps a superseded report an honest piece of history rather than a silently-misleading
+current view. `<spec>` names the finding number(s) this run's ruling covers (e.g. `"1-3"`); if
+only some findings were ruled on this session, run it again later with the remaining numbers —
+each call adds its own stamp rather than overwriting the last.
 
 ## Conventions
 

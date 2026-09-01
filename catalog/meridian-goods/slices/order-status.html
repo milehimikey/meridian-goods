@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Order Status — Meridian Goods — Ordering</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0; font-family: system-ui, sans-serif; line-height: 1.5;
+      background: #fafafa; color: #1f2933;
+    }
+    header {
+      padding: .75rem 1.25rem; background: #1f2933; color: #fff;
+    }
+    header a { color: #fff; text-decoration: none; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #ddd; font-size: 14px; }
+    th { font-weight: 600; background: #f0f2f5; }
+    .status { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: 12px; background: #e4e7eb; }
+    .pattern { font-size: 12px; color: #52606d; }
+    /* Fixed-height frame, not a width-driven one: a slice diagram is often
+       narrow and tall relative to the full model's wide/short diagram, so
+       sizing by width alone would blow a narrow one's height up hugely.
+       object-fit doesn't apply to <object> the way it does <img> (needed here,
+       not <img>, so the SVG's clickable note links keep working) — giving it a
+       DEFINITE width AND height together stretches it non-uniformly, distorting
+       the aspect ratio instead of preserving it. width:auto + height:100% +
+       max-width:100% instead sizes it from its own intrinsic aspect ratio
+       (capped, never overflowing the frame); the flex centers it horizontally. */
+    .diagram-frame {
+      height: 420px; border: 1px solid #ddd; margin: 1rem 0; overflow: hidden; background: #fff;
+      display: flex; align-items: flex-start; justify-content: center;
+    }
+    object.diagram { width: auto; height: 100%; max-width: 100%; }
+    .full-diagram-link { margin: 0 0 1rem; font-size: 13px; }
+    .doc { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #ddd; }
+    .doc h1 { font-size: 1.3rem; }
+    .doc h2 { font-size: 1.05rem; }
+    .no-doc { color: #7b8794; font-style: italic; }
+    code { background: #eee; padding: .05rem .3rem; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <header><a href="../../index.html">Event Model Catalog</a></header>
+  <main>
+    <p><a href="../../index.html">&larr; Meridian Goods — Ordering</a></p>
+    <h1>Order Status</h1>
+    <p class="pattern">State View · <span class="status">implemented</span></p>
+    <div class="diagram-frame"><object class="diagram" type="image/svg+xml" data="order-status.svg"></object></div>
+    <p class="full-diagram-link"><a href="../diagram.svg">View full model diagram &rarr;</a></p>
+    <table>
+      <thead><tr><th>Kind</th><th>Name</th><th>Detail</th></tr></thead>
+      <tbody>
+      <tr id="order-status/view.order-status">
+        <td>view</td>
+        <td>Order Status</td>
+        <td>from Order Placed, Payment Requested, Payment Captured &middot; { orderId: UUID, placedAt: DateTime, requestedAt: DateTime, capturedAt: DateTime }</td>
+      </tr>
+      <tr id="order-status/ui.account-page">
+        <td>ui</td>
+        <td>Account Page</td>
+        <td>@Customer</td>
+      </tr>
+      </tbody>
+    </table>
+    <div class="doc"><h1>Slice: Order Status</h1>
+<p><img src="./order-status.svg" alt="Diagram"></p>
+<h2>Intent</h2>
+<p>A customer wants to know where their order stands — placed, payment requested, or paid —
+without contacting support. This view closes the loop for every event this base model records
+about an order, so it&#39;s deliberately the last slice fed by all three ordering/payment events.</p>
+<h2>Trigger &amp; Actor</h2>
+<p>No user action triggers this slice directly — it&#39;s a projection that updates automatically as
+<code>Order Placed</code>, <code>Payment Requested</code>, or <code>Payment Captured</code> land for a given order. The
+<strong>Customer</strong> consults it on demand via the <strong>Account Page</strong>.</p>
+<h2>Read Model / View</h2>
+<ul>
+<li><strong>View:</strong> <code>Order Status</code> built from events: <code>Order Placed</code>, <code>Payment Requested</code>,
+<code>Payment Captured</code></li>
+<li><strong>Consumed by:</strong> <code>Account Page</code> @Customer</li>
+<li><strong>Freshness / consistency expectation:</strong> eventual — the customer&#39;s view lags event recording
+by ordinary projector latency; no synchronous read of the write side.</li>
+</ul>
+<h2>Invariants / Business Rules</h2>
+<ul>
+<li><strong>INV-OS-1:</strong> The fold is idempotent. Re-projecting the same source event (redelivery, replay,
+projector restart) never creates a duplicate row or double-applies a field — each order&#39;s
+status row is keyed by <code>orderId</code> and appears exactly once.</li>
+<li><strong>INV-OS-2:</strong> &quot;Status&quot; is never a separately stored or inferred field — it is derived purely
+from which timestamp fields are actually populated (<code>placedAt</code> only ⇒ placed;
+<code>+ requestedAt</code> ⇒ payment requested; <code>+ capturedAt</code> ⇒ paid). There is no independent <code>status</code>
+enum that could drift out of sync with the underlying event facts, and no field is ever
+populated by inference, elapsed time, or assumption about what &quot;should&quot; have happened —
+only by the corresponding event actually landing.</li>
+</ul>
+<h2>Scenarios (Given / When / Then)</h2>
+<ul>
+<li><strong><code>Order Placed</code> lands</strong> — Given no prior row for this <code>orderId</code>, When <code>Order Placed</code> is
+projected, Then a new <code>Order Status</code> row appears with <code>orderId</code> and <code>placedAt</code> populated,
+<code>requestedAt</code>/<code>capturedAt</code> absent, reading as &quot;placed&quot; (INV-OS-2).</li>
+<li><strong><code>Payment Requested</code> lands</strong> — Given an existing row with <code>placedAt</code> set, When
+<code>Payment Requested</code> is projected, Then that row is updated in place with <code>requestedAt</code>
+populated, reading as &quot;payment requested&quot; — no new row is created (INV-OS-1).</li>
+<li><strong><code>Payment Captured</code> lands</strong> — Given an existing row with <code>placedAt</code> and <code>requestedAt</code> set,
+When <code>Payment Captured</code> is projected, Then that row is updated in place with <code>capturedAt</code>
+populated, reading as &quot;paid&quot; — no new row is created (INV-OS-1).</li>
+<li><strong>Redelivered event (INV-OS-1)</strong> — Given a row already reflects a given source event, When
+that same event is redelivered to the projector, Then the row is unchanged — no duplicate row,
+no field double-applied, and the derived status (INV-OS-2) doesn&#39;t change either.</li>
+</ul>
+<h2>Alternate &amp; Error Flows</h2>
+<ul>
+<li><strong>No payment yet:</strong> an order can sit indefinitely at &quot;placed&quot; (<code>requestedAt</code>/<code>capturedAt</code> both
+absent) if the payment-request automation hasn&#39;t run yet or payment hasn&#39;t been captured — the
+view shows this honestly rather than assuming a stuck request means failure.</li>
+<li><strong>Idempotency mechanism:</strong> same as <code>Open Orders</code> — the projector folds by <code>orderId</code>, and each
+event sets only its own field(s), so replay/redelivery is naturally idempotent (INV-OS-1).</li>
+</ul>
+<h2>Non-Functional Requirements</h2>
+<ul>
+<li><strong>Security / authz:</strong> a customer may only view their own order&#39;s status (enforced upstream of
+this slice).</li>
+<li><strong>PII &amp; compliance:</strong> carries <code>orderId</code> and timestamps only; no payment instrument data.</li>
+<li><strong>Performance / SLA:</strong> none beyond ordinary interactive read latency for this demo.</li>
+</ul>
+<h2>Dependencies &amp; Read Models Affected</h2>
+<ul>
+<li><strong>Upstream events this slice relies on:</strong> <code>Order Placed</code> (<code>slices/place-order.md</code>);
+<code>Payment Requested</code> and <code>Payment Captured</code> (payments slices, owned separately — field names
+<code>orderId</code>, <code>requestedAt</code>, <code>capturedAt</code> match this view&#39;s fields by the shared field contract).</li>
+<li><strong>Downstream read models / slices affected:</strong> none — this is a terminal read model for the
+Customer persona in this model.</li>
+</ul>
+<h2>Open Questions</h2>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Should a failed/declined payment show as its own status? <strong>Resolved (deferred):</strong> this
+base model has no &quot;payment failed&quot; event yet — only requested/captured — so <code>Order Status</code>
+only ever reads as placed / payment requested / paid. A failure-path event is out of scope for
+these three slices.</li>
+</ul>
+</div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Place Order — Meridian Goods — Ordering</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0; font-family: system-ui, sans-serif; line-height: 1.5;
+      background: #fafafa; color: #1f2933;
+    }
+    header {
+      padding: .75rem 1.25rem; background: #1f2933; color: #fff;
+    }
+    header a { color: #fff; text-decoration: none; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #ddd; font-size: 14px; }
+    th { font-weight: 600; background: #f0f2f5; }
+    .status { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: 12px; background: #e4e7eb; }
+    .pattern { font-size: 12px; color: #52606d; }
+    /* Fixed-height frame, not a width-driven one: a slice diagram is often
+       narrow and tall relative to the full model's wide/short diagram, so
+       sizing by width alone would blow a narrow one's height up hugely.
+       object-fit doesn't apply to <object> the way it does <img> (needed here,
+       not <img>, so the SVG's clickable note links keep working) — giving it a
+       DEFINITE width AND height together stretches it non-uniformly, distorting
+       the aspect ratio instead of preserving it. width:auto + height:100% +
+       max-width:100% instead sizes it from its own intrinsic aspect ratio
+       (capped, never overflowing the frame); the flex centers it horizontally. */
+    .diagram-frame {
+      height: 420px; border: 1px solid #ddd; margin: 1rem 0; overflow: hidden; background: #fff;
+      display: flex; align-items: flex-start; justify-content: center;
+    }
+    object.diagram { width: auto; height: 100%; max-width: 100%; }
+    .full-diagram-link { margin: 0 0 1rem; font-size: 13px; }
+    .doc { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #ddd; }
+    .doc h1 { font-size: 1.3rem; }
+    .doc h2 { font-size: 1.05rem; }
+    .no-doc { color: #7b8794; font-style: italic; }
+    code { background: #eee; padding: .05rem .3rem; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <header><a href="../../index.html">Event Model Catalog</a></header>
+  <main>
+    <p><a href="../../index.html">&larr; Meridian Goods — Ordering</a></p>
+    <h1>Place Order</h1>
+    <p class="pattern">State Change · <span class="status">implemented</span></p>
+    <div class="diagram-frame"><object class="diagram" type="image/svg+xml" data="place-order.svg"></object></div>
+    <p class="full-diagram-link"><a href="../diagram.svg">View full model diagram &rarr;</a></p>
+    <table>
+      <thead><tr><th>Kind</th><th>Name</th><th>Detail</th></tr></thead>
+      <tbody>
+      <tr id="place-order/ui.storefront">
+        <td>ui</td>
+        <td>Storefront</td>
+        <td>@Customer</td>
+      </tr>
+      <tr id="place-order/command.place-order">
+        <td>command</td>
+        <td>Place Order</td>
+        <td>{ orderId: UUID, customerId: UUID, lineItems: OrderLine[], totalCents: Int, placedAt: DateTime }</td>
+      </tr>
+      <tr id="place-order/event.order-placed">
+        <td>event</td>
+        <td>Order Placed</td>
+        <td>@Ordering &middot; { orderId: UUID, customerId: UUID, lineItems: OrderLine[], totalCents: Int, placedAt: DateTime }</td>
+      </tr>
+      </tbody>
+    </table>
+    <div class="doc"><h1>Slice: Place Order</h1>
+<p><img src="./place-order.svg" alt="Diagram"></p>
+<h2>Intent</h2>
+<p>A customer turns their cart into a firm order. This is the deep-dive slice for the Meridian
+Goods walkthrough: it anchors the demo&#39;s idempotency story (client-generated <code>orderId</code>) and its
+money-handling story (integer cents, total derived from line items) — see
+<a href="../domain-decisions.md"><code>domain-decisions.md</code></a>.</p>
+<h2>Trigger &amp; Actor</h2>
+<p>The <strong>Customer</strong>, from the <strong>Storefront</strong> screen, submits their cart at checkout. Each submit
+issues exactly one <code>Place Order</code> command; a retried submit (double-click, client timeout, network
+retry) reuses the same client-generated <code>orderId</code> rather than minting a new one — that reuse is
+what makes idempotent placement (INV-PO-1) meaningful.</p>
+<h2>Command / Input</h2>
+<p><strong>Command:</strong> <code>Place Order</code></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Rules / Validation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>orderId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Client-generated (not server-assigned). Doubles as the idempotency key — see INV-PO-1 and <a href="../domain-decisions.md#client-generated-orderid-for-idempotency"><code>domain-decisions.md</code></a>.</td>
+</tr>
+<tr>
+<td>customerId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Identifies the customer placing the order. Customer existence/auth is enforced upstream of this slice (out of scope here).</td>
+</tr>
+<tr>
+<td>lineItems</td>
+<td>OrderLine[]</td>
+<td>yes</td>
+<td>At least one entry (INV-PO-3). Each <code>OrderLine</code>: <code>sku</code> (string, required, identifies the product), <code>quantity</code> (int, must be &gt; 0 — INV-PO-4), <code>priceCents</code> (int, unit price snapshotted at order time, &gt;= 0).</td>
+</tr>
+<tr>
+<td>totalCents</td>
+<td>Int</td>
+<td>yes</td>
+<td>Must equal Σ (<code>priceCents</code> × <code>quantity</code>) across <code>lineItems</code> — INV-PO-2. The server recomputes and verifies this; it never trusts a client-supplied total blindly.</td>
+</tr>
+<tr>
+<td>placedAt</td>
+<td>DateTime</td>
+<td>no</td>
+<td><strong>Modeling note, not a real request field:</strong> this is the server clock&#39;s timestamp at command-handling time, not something the client sends. It appears on the command element here only so the DSL&#39;s event-field/command-field completeness check (<code>em validate</code>, <code>fields-completeness/event-field-no-source</code>) can trace <code>Order Placed.placedAt</code> to a same-slice origin — the tool has no separate &quot;system-assigned at handling time&quot; field category. The actual API request body excludes it. See <strong>Open Questions</strong> for the judgment call this represents.</td>
+</tr>
+</tbody></table>
+<h2>Trigger</h2>
+<p><strong>Triggered by:</strong> screen <code>Storefront</code> @Customer</p>
+<h2>Event(s) Emitted</h2>
+<p><strong>Event:</strong> <code>Order Placed</code> → context <code>Ordering</code>
+<strong>Read by:</strong> <code>Payments To Request</code> view (next slice, feeds the payment-request automation), <code>Open Orders</code> view (this branch&#39;s <code>slices/open-orders.md</code>), <code>Order Status</code> view (<code>slices/order-status.md</code>)</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Immutable Fact?</th>
+<th>Source / Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>orderId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Copied from the command; the order&#39;s identity for the rest of its lifecycle.</td>
+</tr>
+<tr>
+<td>customerId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Copied from the command.</td>
+</tr>
+<tr>
+<td>lineItems</td>
+<td>OrderLine[]</td>
+<td>yes</td>
+<td>Copied from the command — a snapshot of what was ordered and at what price, immune to later catalog/price changes.</td>
+</tr>
+<tr>
+<td>totalCents</td>
+<td>Int</td>
+<td>yes</td>
+<td>Copied from the command, after the server has verified it equals Σ line items (INV-PO-2).</td>
+</tr>
+<tr>
+<td>placedAt</td>
+<td>DateTime</td>
+<td>yes</td>
+<td>Server clock at the moment the event is recorded — the actual, meaningful origin of this field (see the Command/Input note above on why it&#39;s echoed there too).</td>
+</tr>
+</tbody></table>
+<h2>Invariants / Business Rules</h2>
+<ul>
+<li><strong>INV-PO-1:</strong> Placement is idempotent by client-supplied <code>orderId</code>. A <code>Place Order</code> command
+whose <code>orderId</code> already has a recorded <code>Order Placed</code> event is <strong>not</strong> a new order: if the
+resubmitted payload is identical, the command is a no-op that returns the original result
+without appending a second event; if the payload differs, the command is rejected as a
+conflict (the same <code>orderId</code> can never back two different orders).</li>
+<li><strong>INV-PO-2:</strong> <code>totalCents</code> must equal Σ (<code>priceCents</code> × <code>quantity</code>) over all <code>lineItems</code>. The
+server computes this itself and rejects a command whose supplied <code>totalCents</code> disagrees —
+the client&#39;s total is never taken on faith.</li>
+<li><strong>INV-PO-3:</strong> An order must contain at least one line item. A <code>lineItems</code> array with zero
+entries is rejected — there is no such thing as an empty order.</li>
+<li><strong>INV-PO-4:</strong> Every line item&#39;s <code>quantity</code> must be a positive integer. Zero, negative, or
+fractional quantities are rejected line-item-by-line-item (the whole command fails; no partial
+order is created).</li>
+</ul>
+<h2>Scenarios (Given / When / Then)</h2>
+<ul>
+<li><strong>Happy path</strong> — Given a customer with a non-empty cart of 2 line items whose prices and
+quantities sum correctly, When they submit <code>Place Order</code> with a fresh <code>orderId</code>, Then
+<code>Order Placed</code> is recorded with the submitted <code>orderId</code>, <code>customerId</code>, <code>lineItems</code>, <code>totalCents</code>,
+and a server-assigned <code>placedAt</code>; the order becomes visible on <code>Open Orders</code> and <code>Order Status</code>.</li>
+<li><strong>Rejected — total mismatch (INV-PO-2)</strong> — Given a cart of 2 line items whose true sum is
+4200 cents, When <code>Place Order</code> is submitted with <code>totalCents: 4000</code>, Then the command is
+rejected with a total-mismatch reason and no <code>Order Placed</code> event is recorded.</li>
+<li><strong>Rejected — empty order (INV-PO-3)</strong> — Given a cart with zero line items, When <code>Place Order</code>
+is submitted, Then the command is rejected as an empty order and no event is recorded.</li>
+<li><strong>Rejected — invalid quantity (INV-PO-4)</strong> — Given a cart containing one line item with
+<code>quantity: -1</code> (or <code>0</code>), When <code>Place Order</code> is submitted, Then the command is rejected citing
+the offending line item and no event is recorded.</li>
+<li><strong>Duplicate-<code>orderId</code> retry (INV-PO-1)</strong> — Given an <code>Order Placed</code> event already recorded for
+<code>orderId: X</code> from an earlier successful submit, When the customer&#39;s client retries <code>Place Order</code>
+with the same <code>orderId: X</code> and the identical payload (e.g. after a timed-out response), Then no
+second <code>Order Placed</code> event is recorded and the command returns the original order&#39;s result —
+the customer is never double-charged or double-fulfilled from a retried click.</li>
+<li><strong>Conflicting duplicate <code>orderId</code> (INV-PO-1)</strong> — Given an <code>Order Placed</code> event already recorded
+for <code>orderId: X</code>, When a <code>Place Order</code> command arrives reusing <code>orderId: X</code> but with different
+<code>lineItems</code>/<code>totalCents</code>, Then the command is rejected as a conflict and no second event is
+recorded — a reused <code>orderId</code> never silently mutates or replaces the original order.</li>
+</ul>
+<h2>Alternate &amp; Error Flows</h2>
+<ul>
+<li><strong>Idempotent retry:</strong> see INV-PO-1 and its two scenarios above — same-payload replay is a
+silent no-op; different-payload replay is a rejected conflict. This is the mechanism that lets
+the client safely retry on any ambiguous outcome (timeout, dropped connection) without a
+reconciliation step.</li>
+<li><strong>Validation failures (INV-PO-2/3/4) never partially apply.</strong> The command either fully
+succeeds (one <code>Order Placed</code> event, fully formed) or fully fails (no event at all); there is no
+partially-recorded order.</li>
+<li><strong>Downstream failure isolation:</strong> a failure in the automation that requests payment
+(<code>Request Payment</code>, the next slice) never rolls back <code>Order Placed</code> — the order is already a
+recorded fact once its event is written. Payment failure is handled entirely in that later
+slice&#39;s own error flow.</li>
+</ul>
+<h2>Non-Functional Requirements</h2>
+<ul>
+<li><strong>Security / authz:</strong> the Customer must be authenticated and may only place an order for their
+own <code>customerId</code> (enforced upstream of this slice).</li>
+<li><strong>PII &amp; compliance:</strong> <code>customerId</code> links to personal data held elsewhere; no PII is stored
+directly in this event&#39;s payload beyond that reference.</li>
+<li><strong>Performance / SLA:</strong> none beyond ordinary interactive request latency — no special SLA for
+this demo.</li>
+</ul>
+<h2>Dependencies &amp; Read Models Affected</h2>
+<ul>
+<li><strong>Upstream events this slice relies on:</strong> none — this is the originating write for an order.</li>
+<li><strong>Downstream read models / slices affected:</strong> <code>Payments To Request</code> (feeds the payment
+automation), <code>Open Orders</code> (staff fulfillment view), <code>Order Status</code> (customer-facing view) —
+all three project <code>Order Placed</code>.</li>
+</ul>
+<h2>Open Questions</h2>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Should <code>placedAt</code> be a real client-supplied field, or server-assigned? <strong>Resolved:</strong>
+server-assigned at command-handling time. It&#39;s listed on the <code>Place Order</code> command element in
+the <code>.em</code> model purely so <code>em validate</code>&#39;s field-flow completeness check can trace it — the
+Command/Input table above documents that this is a modeling artifact, not a real request field.
+See the findings file (<code>w2a-ordering-docs.md</code>) for the fuller judgment call.</li>
+<li><input checked="" disabled="" type="checkbox"> What happens on a duplicate <code>orderId</code> with a <em>different</em> payload? <strong>Resolved:</strong> rejected as
+a conflict, never silently applied and never treated as a second order — see INV-PO-1 and its
+&quot;Conflicting duplicate <code>orderId</code>&quot; scenario.</li>
+</ul>
+</div>
+  </main>
+</body>
+</html>

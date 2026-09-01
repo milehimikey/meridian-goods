@@ -52,43 +52,53 @@ command at the boundary and issues it; it never records an event itself.
 
 ## Invariants / Business Rules
 - **INV-RPR-1 (anti-corruption seam):** The provider's raw webhook payload never enters the
-  domain event. The `Payment Provider Adapter` maps the provider's wire shape (whatever fields,
-  encodings, and vocabulary the provider uses) onto the fixed `Record Payment Result` command
-  fields at the boundary; `Payment Captured` only ever carries our own typed, named fields
-  (`paymentId`, `orderId`, `amountCents`, `capturedAt`, `providerRef`). If the provider changes
-  its payload shape, only the adapter's mapping changes — the command, the event, and every
-  downstream reader are unaffected.
+  domain event.
+  - The `Payment Provider Adapter` maps the provider's wire shape (whatever fields, encodings,
+    and vocabulary the provider uses) onto the fixed `Record Payment Result` command fields at
+    the boundary; `Payment Captured` only ever carries our own typed, named fields
+    (`paymentId`, `orderId`, `amountCents`, `capturedAt`, `providerRef`).
+  - If the provider changes its payload shape, only the adapter's mapping changes — the
+    command, the event, and every downstream reader are unaffected.
 - **INV-RPR-2 (idempotent under retries):** Payment providers redeliver webhooks (at-least-once
   delivery is standard practice for this class of integration). A retried webhook carrying the
   same `providerRef` as one already processed must never produce a second `Payment Captured`
-  event — the adapter (or the command handler it calls) treats a repeat `providerRef` as a no-op,
-  not a new fact. This is what makes the boundary safe to expose to a provider that retries on
-  timeout, not just on genuine failure.
+  event — the adapter (or the command handler it calls) treats a repeat `providerRef` as a
+  no-op, not a new fact.
+  - This is what makes the boundary safe to expose to a provider that retries on timeout, not
+    just on genuine failure.
 - **INV-RPR-3 (unknown paymentId is a rejection, not a fact):** If the webhook's mapped
   `paymentId` does not correspond to any `Payment Requested` event Meridian Goods has recorded,
-  `Record Payment Result` is rejected — no `Payment Captured` event is recorded. A capture result
-  for a payment we never requested is not a fact about our system; recording it anyway would let
-  an external actor (or a misconfigured/malicious webhook) inject state we never asked for.
+  `Record Payment Result` is rejected — no `Payment Captured` event is recorded.
+  - A capture result for a payment we never requested is not a fact about our system;
+    recording it anyway would let an external actor (or a misconfigured/malicious webhook)
+    inject state we never asked for.
 
 ## Scenarios (Given / When / Then)
-- **Happy path** — Given `Payment Requested` exists for `paymentId` `P1` / `orderId` `O1`, When
-  the provider's webhook reports a capture for `P1` (amountCents `5000`, providerRef `ch_abc123`),
-  Then the adapter maps it to `Record Payment Result` and `Payment Captured` is recorded for `P1`
-  with `providerRef` `ch_abc123`.
-- **Idempotent retry (INV-RPR-2)** — Given `Payment Captured` for `P1` has already been recorded
-  with `providerRef` `ch_abc123`, When the provider redelivers the identical webhook (same
-  `providerRef`) after a timeout on its side, Then no second `Payment Captured` event is recorded
-  — the retry is a no-op.
-- **Distinct providerRef is a distinct fact** — Given `Payment Captured` for `P1` already exists
-  with `providerRef` `ch_abc123`, When a *different* webhook arrives for `P1` carrying a different
-  `providerRef` (e.g. a genuinely separate capture attempt the provider assigns a new id to),
-  Then this is treated as a new event only if the domain actually allows a second capture for the
-  same payment — in this model it does not (a payment is captured once), so this case is rejected
-  the same way an unknown-context duplicate would be; the `providerRef` distinguishes retries from
-  new facts, it does not by itself authorize multiple captures per payment.
-- **Rejected — unknown paymentId (INV-RPR-3)** — Given no `Payment Requested` event exists for
-  `paymentId` `P9`, When a webhook reports a capture for `P9`, Then `Record Payment Result` is
-  rejected and no `Payment Captured` event is recorded.
+- **Happy path**
+  - **Given:** `Payment Requested` exists for `paymentId` `P1` / `orderId` `O1`
+  - **When:** the provider's webhook reports a capture for `P1` (amountCents `5000`,
+    providerRef `ch_abc123`)
+  - **Then:** the adapter maps it to `Record Payment Result` and `Payment Captured` is
+    recorded for `P1` with `providerRef` `ch_abc123`.
+- **Idempotent retry (INV-RPR-2)**
+  - **Given:** `Payment Captured` for `P1` has already been recorded with `providerRef`
+    `ch_abc123`
+  - **When:** the provider redelivers the identical webhook (same `providerRef`) after a
+    timeout on its side
+  - **Then:** no second `Payment Captured` event is recorded — the retry is a no-op.
+- **Distinct providerRef is a distinct fact**
+  - **Given:** `Payment Captured` for `P1` already exists with `providerRef` `ch_abc123`
+  - **When:** a *different* webhook arrives for `P1` carrying a different `providerRef` (e.g.
+    a genuinely separate capture attempt the provider assigns a new id to)
+  - **Then:** this is treated as a new event only if the domain actually allows a second
+    capture for the same payment — in this model it does not (a payment is captured once), so
+    this case is rejected the same way an unknown-context duplicate would be; the
+    `providerRef` distinguishes retries from new facts, it does not by itself authorize
+    multiple captures per payment.
+- **Rejected — unknown paymentId (INV-RPR-3)**
+  - **Given:** no `Payment Requested` event exists for `paymentId` `P9`
+  - **When:** a webhook reports a capture for `P9`
+  - **Then:** `Record Payment Result` is rejected and no `Payment Captured` event is recorded.
 
 ## Alternate & Error Flows
 - **Webhook retries:** covered by INV-RPR-2 — same `providerRef` in, no duplicate event out.

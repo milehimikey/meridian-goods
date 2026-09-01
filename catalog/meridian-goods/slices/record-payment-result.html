@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Record Payment Result — Meridian Goods — Ordering</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0; font-family: system-ui, sans-serif; line-height: 1.5;
+      background: #fafafa; color: #1f2933;
+    }
+    header {
+      padding: .75rem 1.25rem; background: #1f2933; color: #fff;
+    }
+    header a { color: #fff; text-decoration: none; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #ddd; font-size: 14px; }
+    th { font-weight: 600; background: #f0f2f5; }
+    .status { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: 12px; background: #e4e7eb; }
+    .pattern { font-size: 12px; color: #52606d; }
+    /* Fixed-height frame, not a width-driven one: a slice diagram is often
+       narrow and tall relative to the full model's wide/short diagram, so
+       sizing by width alone would blow a narrow one's height up hugely.
+       object-fit doesn't apply to <object> the way it does <img> (needed here,
+       not <img>, so the SVG's clickable note links keep working) — giving it a
+       DEFINITE width AND height together stretches it non-uniformly, distorting
+       the aspect ratio instead of preserving it. width:auto + height:100% +
+       max-width:100% instead sizes it from its own intrinsic aspect ratio
+       (capped, never overflowing the frame); the flex centers it horizontally. */
+    .diagram-frame {
+      height: 420px; border: 1px solid #ddd; margin: 1rem 0; overflow: hidden; background: #fff;
+      display: flex; align-items: flex-start; justify-content: center;
+    }
+    object.diagram { width: auto; height: 100%; max-width: 100%; }
+    .full-diagram-link { margin: 0 0 1rem; font-size: 13px; }
+    .doc { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #ddd; }
+    .doc h1 { font-size: 1.3rem; }
+    .doc h2 { font-size: 1.05rem; }
+    .no-doc { color: #7b8794; font-style: italic; }
+    code { background: #eee; padding: .05rem .3rem; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <header><a href="../../index.html">Event Model Catalog</a></header>
+  <main>
+    <p><a href="../../index.html">&larr; Meridian Goods — Ordering</a></p>
+    <h1>Record Payment Result</h1>
+    <p class="pattern">Translation · <span class="status">implemented</span></p>
+    <div class="diagram-frame"><object class="diagram" type="image/svg+xml" data="record-payment-result.svg"></object></div>
+    <p class="full-diagram-link"><a href="../diagram.svg">View full model diagram &rarr;</a></p>
+    <table>
+      <thead><tr><th>Kind</th><th>Name</th><th>Detail</th></tr></thead>
+      <tbody>
+      <tr id="record-payment-result/translation.payment-provider-adapter">
+        <td>translation</td>
+        <td>Payment Provider Adapter</td>
+        <td></td>
+      </tr>
+      <tr id="record-payment-result/command.record-payment-result">
+        <td>command</td>
+        <td>Record Payment Result</td>
+        <td>{ paymentId: UUID, orderId: UUID, amountCents: Int, capturedAt: DateTime, providerRef: String }</td>
+      </tr>
+      <tr id="record-payment-result/event.payment-captured">
+        <td>event</td>
+        <td>Payment Captured</td>
+        <td>@Payments &middot; { paymentId: UUID, orderId: UUID, amountCents: Int, capturedAt: DateTime, providerRef: String }</td>
+      </tr>
+      </tbody>
+    </table>
+    <div class="doc"><h1>Slice: Record Payment Result</h1>
+<p><img src="./record-payment-result.svg" alt="Diagram"></p>
+<h2>Intent</h2>
+<p>The payment provider tells Meridian Goods, out of band, that a payment succeeded — via a webhook
+call the provider makes on its own schedule. This slice is the anti-corruption seam between the
+provider&#39;s wire format and our domain: it translates that external notification into our own
+<code>Record Payment Result</code> command, so the rest of the system only ever deals with our vocabulary
+(<code>Payment Captured</code>), never the provider&#39;s payload shape.</p>
+<h2>Trigger &amp; Actor</h2>
+<p>Externally triggered, no durable artifact: the provider&#39;s webhook call is the <code>Payment Provider Adapter</code> translation&#39;s input directly — there is no persisted inbound queue behind it in this
+model (no <code>from</code>, no slice before this one). The adapter maps the provider&#39;s payload to our
+command at the boundary and issues it; it never records an event itself.</p>
+<h2>Command / Input</h2>
+<p><strong>Command:</strong> <code>Record Payment Result</code></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Rules / Validation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>paymentId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Must name a <code>paymentId</code> already recorded by a <code>Payment Requested</code> event — see INV-RPR-3; the adapter maps this from whatever correlation identifier the provider&#39;s payload carries for our original request.</td>
+</tr>
+<tr>
+<td>orderId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Mapped from the provider payload; must match the <code>orderId</code> already associated with <code>paymentId</code> via <code>Payment Requested</code>.</td>
+</tr>
+<tr>
+<td>amountCents</td>
+<td>Int</td>
+<td>yes</td>
+<td>Mapped from the provider&#39;s captured-amount field; the command carries our own integer-cents representation, not the provider&#39;s native format (which may be a decimal string or a different currency-minor-unit convention).</td>
+</tr>
+<tr>
+<td>capturedAt</td>
+<td>DateTime</td>
+<td>yes</td>
+<td>Mapped from the provider payload&#39;s capture-time field — the provider&#39;s authoritative clock, crossing the INV-RPR-1 seam as a typed field like everything else.</td>
+</tr>
+<tr>
+<td>providerRef</td>
+<td>String</td>
+<td>yes</td>
+<td>The provider&#39;s own identifier for this capture event (e.g. their charge/transaction id). This is the idempotency key for INV-RPR-1 — a retried webhook for the same underlying capture carries the same <code>providerRef</code>.</td>
+</tr>
+</tbody></table>
+<h2>Trigger</h2>
+<p><strong>Triggered by:</strong> translation <code>Payment Provider Adapter</code>, also in this slice.</p>
+<h2>Event(s) Emitted</h2>
+<p><strong>Event:</strong> <code>Payment Captured</code> → context <code>Payments</code>
+<strong>Read by:</strong> <code>Open Orders</code> (staff-facing, in the <code>Open Orders</code> slice) and <code>Order Status</code>
+(customer-facing, in the <code>Order Status</code> slice).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Immutable Fact?</th>
+<th>Source / Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>paymentId</td>
+<td>UUID</td>
+<td>yes</td>
+<td><code>Record Payment Result.paymentId</code></td>
+</tr>
+<tr>
+<td>orderId</td>
+<td>UUID</td>
+<td>yes</td>
+<td><code>Record Payment Result.orderId</code></td>
+</tr>
+<tr>
+<td>amountCents</td>
+<td>Int</td>
+<td>yes</td>
+<td><code>Record Payment Result.amountCents</code></td>
+</tr>
+<tr>
+<td>capturedAt</td>
+<td>DateTime</td>
+<td>yes</td>
+<td>Carried in the provider&#39;s webhook payload — the <em>provider&#39;s</em> capture time, mapped onto <code>Record Payment Result.capturedAt</code> at the anti-corruption boundary (INV-RPR-1). Not a server echo; the provider is the authoritative source of when capture happened (see <code>domain-decisions.md</code>, timestamp-origin convention).</td>
+</tr>
+<tr>
+<td>providerRef</td>
+<td>String</td>
+<td>yes</td>
+<td><code>Record Payment Result.providerRef</code> — kept on the event (not just the command) so downstream reconciliation against the provider&#39;s own records never has to re-derive it.</td>
+</tr>
+</tbody></table>
+<h2>Invariants / Business Rules</h2>
+<ul>
+<li><strong>INV-RPR-1 (anti-corruption seam):</strong> The provider&#39;s raw webhook payload never enters the
+domain event. The <code>Payment Provider Adapter</code> maps the provider&#39;s wire shape (whatever fields,
+encodings, and vocabulary the provider uses) onto the fixed <code>Record Payment Result</code> command
+fields at the boundary; <code>Payment Captured</code> only ever carries our own typed, named fields
+(<code>paymentId</code>, <code>orderId</code>, <code>amountCents</code>, <code>capturedAt</code>, <code>providerRef</code>). If the provider changes
+its payload shape, only the adapter&#39;s mapping changes — the command, the event, and every
+downstream reader are unaffected.</li>
+<li><strong>INV-RPR-2 (idempotent under retries):</strong> Payment providers redeliver webhooks (at-least-once
+delivery is standard practice for this class of integration). A retried webhook carrying the
+same <code>providerRef</code> as one already processed must never produce a second <code>Payment Captured</code>
+event — the adapter (or the command handler it calls) treats a repeat <code>providerRef</code> as a no-op,
+not a new fact. This is what makes the boundary safe to expose to a provider that retries on
+timeout, not just on genuine failure.</li>
+<li><strong>INV-RPR-3 (unknown paymentId is a rejection, not a fact):</strong> If the webhook&#39;s mapped
+<code>paymentId</code> does not correspond to any <code>Payment Requested</code> event Meridian Goods has recorded,
+<code>Record Payment Result</code> is rejected — no <code>Payment Captured</code> event is recorded. A capture result
+for a payment we never requested is not a fact about our system; recording it anyway would let
+an external actor (or a misconfigured/malicious webhook) inject state we never asked for.</li>
+</ul>
+<h2>Scenarios (Given / When / Then)</h2>
+<ul>
+<li><strong>Happy path</strong> — Given <code>Payment Requested</code> exists for <code>paymentId</code> <code>P1</code> / <code>orderId</code> <code>O1</code>, When
+the provider&#39;s webhook reports a capture for <code>P1</code> (amountCents <code>5000</code>, providerRef <code>ch_abc123</code>),
+Then the adapter maps it to <code>Record Payment Result</code> and <code>Payment Captured</code> is recorded for <code>P1</code>
+with <code>providerRef</code> <code>ch_abc123</code>.</li>
+<li><strong>Idempotent retry (INV-RPR-2)</strong> — Given <code>Payment Captured</code> for <code>P1</code> has already been recorded
+with <code>providerRef</code> <code>ch_abc123</code>, When the provider redelivers the identical webhook (same
+<code>providerRef</code>) after a timeout on its side, Then no second <code>Payment Captured</code> event is recorded
+— the retry is a no-op.</li>
+<li><strong>Distinct providerRef is a distinct fact</strong> — Given <code>Payment Captured</code> for <code>P1</code> already exists
+with <code>providerRef</code> <code>ch_abc123</code>, When a <em>different</em> webhook arrives for <code>P1</code> carrying a different
+<code>providerRef</code> (e.g. a genuinely separate capture attempt the provider assigns a new id to),
+Then this is treated as a new event only if the domain actually allows a second capture for the
+same payment — in this model it does not (a payment is captured once), so this case is rejected
+the same way an unknown-context duplicate would be; the <code>providerRef</code> distinguishes retries from
+new facts, it does not by itself authorize multiple captures per payment.</li>
+<li><strong>Rejected — unknown paymentId (INV-RPR-3)</strong> — Given no <code>Payment Requested</code> event exists for
+<code>paymentId</code> <code>P9</code>, When a webhook reports a capture for <code>P9</code>, Then <code>Record Payment Result</code> is
+rejected and no <code>Payment Captured</code> event is recorded.</li>
+</ul>
+<h2>Alternate &amp; Error Flows</h2>
+<ul>
+<li><strong>Webhook retries:</strong> covered by INV-RPR-2 — same <code>providerRef</code> in, no duplicate event out.</li>
+<li><strong>Unknown paymentId:</strong> covered by INV-RPR-3 — rejected at the command boundary, surfaced back to
+the provider integration as a failure response (e.g. so it can alert rather than silently
+retrying forever against a payment id that will never resolve).</li>
+<li><strong>Malformed/partial provider payload:</strong> a payload missing fields the adapter needs to populate
+the command is rejected at the translation boundary before it ever becomes a command attempt —
+this is the adapter&#39;s own input validation, upstream of the command&#39;s own required-field checks.</li>
+</ul>
+<h2>Non-Functional Requirements</h2>
+<ul>
+<li><strong>Security / authz:</strong> the webhook endpoint must authenticate the caller as the actual payment
+provider (e.g. signature verification on the raw payload) before the adapter maps and acts on
+it — modeled here as a precondition of the translation running at all, not as a command field.</li>
+<li><strong>PII &amp; compliance:</strong> the provider payload may carry more than what&#39;s mapped through (card
+metadata, customer contact fields); INV-RPR-1 is also what keeps that data from ever reaching
+our event store — only the four mapped/derived fields cross the seam.</li>
+<li><strong>Performance / SLA:</strong> none modeled — webhook processing is expected to complete well within the
+provider&#39;s own retry/timeout window, which is what makes INV-RPR-2 exercise in practice rather
+than in theory.</li>
+</ul>
+<h2>Dependencies &amp; Read Models Affected</h2>
+<ul>
+<li><strong>Upstream events this slice relies on:</strong> <code>Payment Requested</code> (owned by the <code>Request Payment</code>
+slice) — referenced only to validate <code>paymentId</code> (INV-RPR-3), not consumed as a <code>view</code> source
+(this translation has no durable artifact / no <code>from</code>).</li>
+<li><strong>Downstream read models / slices affected:</strong> <code>Open Orders</code>, <code>Order Status</code> (both read
+<code>Payment Captured</code>).</li>
+</ul>
+<h2>Open Questions</h2>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Should a rejected webhook (unknown paymentId) be persisted anywhere for audit/debugging?
+Resolved: out of scope for this model revision — no inbound-queue durable artifact exists for
+this translation (see the no-durable-artifact form in <code>reference/methodology.md</code> §Translation);
+logging/alerting on rejection is an implementation concern, not a modeled read model.</li>
+<li><input checked="" disabled="" type="checkbox"> Does a provider decline (as opposed to a capture) need its own event? Resolved: not modeled
+in this revision — this slice only translates successful captures; a decline/failure notification
+would need its own event and command, left as a known future extension (see also the matching
+open question in <code>slices/request-payment.md</code>).</li>
+</ul>
+</div>
+  </main>
+</body>
+</html>

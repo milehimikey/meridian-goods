@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Cancel Order — Meridian Goods — Ordering</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0; font-family: system-ui, sans-serif; line-height: 1.5;
+      background: #fafafa; color: #1f2933;
+    }
+    header {
+      padding: .75rem 1.25rem; background: #1f2933; color: #fff;
+    }
+    header a { color: #fff; text-decoration: none; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #ddd; font-size: 14px; }
+    th { font-weight: 600; background: #f0f2f5; }
+    .status { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: 12px; background: #e4e7eb; }
+    .pattern { font-size: 12px; color: #52606d; }
+    /* Fixed-height frame, not a width-driven one: a slice diagram is often
+       narrow and tall relative to the full model's wide/short diagram, so
+       sizing by width alone would blow a narrow one's height up hugely.
+       object-fit doesn't apply to <object> the way it does <img> (needed here,
+       not <img>, so the SVG's clickable note links keep working) — giving it a
+       DEFINITE width AND height together stretches it non-uniformly, distorting
+       the aspect ratio instead of preserving it. width:auto + height:100% +
+       max-width:100% instead sizes it from its own intrinsic aspect ratio
+       (capped, never overflowing the frame); the flex centers it horizontally. */
+    .diagram-frame {
+      height: 420px; border: 1px solid #ddd; margin: 1rem 0; overflow: hidden; background: #fff;
+      display: flex; align-items: flex-start; justify-content: center;
+    }
+    object.diagram { width: auto; height: 100%; max-width: 100%; }
+    .full-diagram-link { margin: 0 0 1rem; font-size: 13px; }
+    .doc { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #ddd; }
+    .doc h1 { font-size: 1.3rem; }
+    .doc h2 { font-size: 1.05rem; }
+    .no-doc { color: #7b8794; font-style: italic; }
+    code { background: #eee; padding: .05rem .3rem; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <header><a href="../../index.html">Event Model Catalog</a></header>
+  <main>
+    <p><a href="../../index.html">&larr; Meridian Goods — Ordering</a></p>
+    <h1>Cancel Order</h1>
+    <p class="pattern">State Change · <span class="status">implemented</span></p>
+    <div class="diagram-frame"><object class="diagram" type="image/svg+xml" data="cancel-order.svg"></object></div>
+    <p class="full-diagram-link"><a href="../diagram.svg">View full model diagram &rarr;</a></p>
+    <table>
+      <thead><tr><th>Kind</th><th>Name</th><th>Detail</th></tr></thead>
+      <tbody>
+      <tr id="cancel-order/ui.account-page">
+        <td>ui</td>
+        <td>Account Page</td>
+        <td>@Customer</td>
+      </tr>
+      <tr id="cancel-order/command.cancel-order">
+        <td>command</td>
+        <td>Cancel Order</td>
+        <td>{ orderId: UUID, customerId: UUID, cancelledAt: DateTime }</td>
+      </tr>
+      <tr id="cancel-order/event.order-cancelled">
+        <td>event</td>
+        <td>Order Cancelled</td>
+        <td>@Ordering &middot; { orderId: UUID, customerId: UUID, cancelledAt: DateTime }</td>
+      </tr>
+      </tbody>
+    </table>
+    <div class="doc"><h1>Slice: Cancel Order</h1>
+<p><img src="./cancel-order.svg" alt="Diagram"></p>
+<h2>Intent</h2>
+<p>Customers have been phoning support to cancel orders they placed by mistake or no longer want.
+This slice lets them self-serve: a customer cancels their own order from the <strong>Account Page</strong>,
+the same screen <code>Order Status</code> already renders on. This is the walkthrough&#39;s CHANGE beat — a
+real, small change request modeled as an added slice, not a code-first patch — and it reopens the
+cancellation question <code>domain-decisions.md</code> deliberately deferred out of the base six-slice model.</p>
+<h2>Trigger &amp; Actor</h2>
+<p>The <strong>Customer</strong>, from the <strong>Account Page</strong>, cancels an order they placed. Only the customer who
+placed the order may cancel it — see <strong>Non-Functional Requirements</strong>. Each cancel click issues one
+<code>Cancel Order</code> command carrying the order&#39;s own <code>orderId</code>.</p>
+<h2>Command / Input</h2>
+<p><strong>Command:</strong> <code>Cancel Order</code></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Rules / Validation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>orderId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Must name an order with a recorded <code>Order Placed</code> event. Unknown <code>orderId</code> is rejected — there is nothing to cancel.</td>
+</tr>
+<tr>
+<td>customerId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Must match the <code>customerId</code> on that order&#39;s <code>Order Placed</code> event — see the authz note under Non-Functional Requirements.</td>
+</tr>
+<tr>
+<td>cancelledAt</td>
+<td>DateTime</td>
+<td>no</td>
+<td><strong>Modeling note, not a real request field:</strong> this is the server clock&#39;s timestamp at command-handling time, not something the client sends. It appears on the command element only so the DSL&#39;s event-field/command-field completeness check can trace <code>Order Cancelled.cancelledAt</code> to a same-slice origin — the same convention <code>place-order.md</code> documents for <code>placedAt</code> (see <code>domain-decisions.md</code>&#39;s timestamp-origin convention). The actual API request body excludes it.</td>
+</tr>
+</tbody></table>
+<h2>Trigger</h2>
+<p><strong>Triggered by:</strong> screen <code>Account Page</code> @Customer</p>
+<h2>Event(s) Emitted</h2>
+<p><strong>Event:</strong> <code>Order Cancelled</code> → context <code>Ordering</code>
+<strong>Read by:</strong> <code>Open Orders — cancelled</code> view (this branch&#39;s <code>slices/open-orders-cancelled.md</code>,
+the repeated <code>Open Orders</code> instance).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Immutable Fact?</th>
+<th>Source / Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>orderId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Copied from the command; identifies the order being cancelled.</td>
+</tr>
+<tr>
+<td>customerId</td>
+<td>UUID</td>
+<td>yes</td>
+<td>Copied from the command, after authz has confirmed it matches the order&#39;s owner.</td>
+</tr>
+<tr>
+<td>cancelledAt</td>
+<td>DateTime</td>
+<td>yes</td>
+<td>Server clock at the moment the event is recorded — the actual, meaningful origin of this field (see the Command/Input note above on why it&#39;s echoed there too).</td>
+</tr>
+</tbody></table>
+<h2>Invariants / Business Rules</h2>
+<ul>
+<li><strong>INV-CO-1 (v2): an order can be cancelled before <code>Payment Captured</code> exists for it, or within
+the 24-hour grace window after capture.</strong> The payment provider auto-voids captures inside its
+settlement window, so a cancel within 24h of <code>capturedAt</code> needs no refund flow; beyond that
+window, <code>Cancel Order</code> is <strong>rejected</strong> — money has genuinely moved, and post-settlement
+cancellation belongs to a separate (unmodeled, future) refund/return path, not this command.
+<em>(v1 said &quot;only BEFORE capture, ever&quot;; the grace window shipped in
+<a href="https://github.com/milehimikey/meridian-goods/pull/17">PR #17</a> ahead of this doc — the
+2026-08-23 conformance run caught the drift and the ratifier ruled the behavior intentional.
+See <code>## Delta</code> and <code>conformance/2026-08-23-report.md</code>.)</em></li>
+<li><strong>INV-CO-2 (idempotent cancel):</strong> A <code>Cancel Order</code> command for an <code>orderId</code> that already has an
+<code>Order Cancelled</code> event recorded is a <strong>no-op</strong>: no second event is appended, and the command
+returns the original cancellation&#39;s result (its original <code>cancelledAt</code> stands, never overwritten
+by a later duplicate click&#39;s timestamp). Design call: cancellation is a one-way action a customer
+is asking for, not a payload the tool needs to compare for conflict (unlike <code>Place Order</code>&#39;s
+INV-PO-1, there&#39;s no meaningfully different &quot;conflicting&quot; cancel payload to reject) — the second
+and any later <code>Cancel Order</code> for an already-cancelled order is always a harmless retry, so it is
+always treated as one rather than rejected.</li>
+</ul>
+<h2>Scenarios (Given / When / Then)</h2>
+<ul>
+<li><strong>Happy path</strong> — Given <code>Order Placed</code> exists for <code>orderId: O1</code> / <code>customerId: C1</code> and no
+<code>Payment Captured</code> has been recorded for <code>O1</code>, When <code>C1</code> submits <code>Cancel Order</code> for <code>O1</code>, Then
+<code>Order Cancelled</code> is recorded with <code>orderId: O1</code>, <code>customerId: C1</code>, and a server-assigned
+<code>cancelledAt</code>; <code>O1</code> disappears from (or is marked cancelled on) the <code>Open Orders</code> staff board via
+<code>Open Orders — cancelled</code>.</li>
+<li><strong>Cancel within the grace window (INV-CO-1 v2)</strong> — Given <code>Order Placed</code> exists for <code>orderId: O1</code>
+and <code>Payment Captured</code> was recorded for <code>O1</code> less than 24 hours ago, When <code>C1</code> submits
+<code>Cancel Order</code> for <code>O1</code>, Then <code>Order Cancelled</code> is recorded (the provider auto-voids the
+capture inside its settlement window).</li>
+<li><strong>Rejected — captured beyond the grace window (INV-CO-1 v2)</strong> — Given <code>Order Placed</code> exists for
+<code>orderId: O1</code> and <code>Payment Captured</code> was recorded for <code>O1</code> more than 24 hours ago, When <code>C1</code>
+submits <code>Cancel Order</code> for <code>O1</code>, Then the command is rejected as too-late-to-cancel and no
+<code>Order Cancelled</code> event is recorded.</li>
+<li><strong>Idempotent retry (INV-CO-2)</strong> — Given <code>Order Cancelled</code> already exists for <code>orderId: O1</code>, When
+<code>C1</code> submits <code>Cancel Order</code> for <code>O1</code> again (double-click, retried request), Then no second
+<code>Order Cancelled</code> event is recorded and the command returns the original cancellation&#39;s result.</li>
+<li><strong>Rejected — wrong customer</strong> — Given <code>Order Placed</code> exists for <code>orderId: O1</code> / <code>customerId: C1</code>,
+When a different customer <code>C2</code> submits <code>Cancel Order</code> for <code>O1</code>, Then the command is rejected as
+unauthorized and no <code>Order Cancelled</code> event is recorded.</li>
+<li><strong>Rejected — unknown order</strong> — Given no <code>Order Placed</code> event exists for <code>orderId: O9</code>, When
+<code>Cancel Order</code> is submitted for <code>O9</code>, Then the command is rejected as unknown and no event is
+recorded.</li>
+</ul>
+<h2>Delta</h2>
+<ul>
+<li><strong>MODIFIED (v1 → v2, ratified 2026-08-23):</strong> INV-CO-1 — &quot;cancel only before <code>Payment Captured</code>&quot;
+became &quot;cancel before capture, or within the 24h post-capture grace window (provider auto-void
+settlement window)&quot;. Scenario &quot;Rejected — already captured&quot; split into the within-grace success
+and beyond-grace rejection scenarios above. Origin: shipped in PR #17 ahead of the model; caught
+by the 2026-08-23 conformance run; ratified as intentional (ruling recorded in
+<code>conformance/2026-08-23-report.md</code>). Implementation already conforms — no propagation work.</li>
+</ul>
+<h2>Alternate &amp; Error Flows</h2>
+<ul>
+<li><strong>Race with capture:</strong> if <code>Payment Captured</code> and <code>Cancel Order</code> are in flight at nearly the same
+time for the same order, INV-CO-1 is evaluated against whatever this command handler&#39;s
+consistency boundary has actually recorded at decision time — if <code>Payment Captured</code> lands first,
+the cancel is rejected (INV-CO-1); if <code>Cancel Order</code> decides first, capture is this model&#39;s
+concern to reject on its own side (out of scope for this slice&#39;s doc; see
+<code>slices/record-payment-result.md</code>).</li>
+<li><strong>Already-cancelled retry:</strong> see INV-CO-2 — always a silent no-op, never a rejection, since a
+repeat cancel request carries no information that could conflict with the first.</li>
+<li><strong>Refund/return after capture:</strong> explicitly out of scope for this slice (see INV-CO-1) — a future
+slice, not modeled here.</li>
+</ul>
+<h2>Non-Functional Requirements</h2>
+<ul>
+<li><strong>Security / authz:</strong> the Customer must be authenticated and may cancel only their own order —
+a <code>Cancel Order</code> whose <code>customerId</code> doesn&#39;t match the order&#39;s recorded owner is rejected (see the
+&quot;Rejected — wrong customer&quot; scenario above), enforced by this command handler itself, not upstream
+middleware, because it needs the order&#39;s own <code>customerId</code> to check against.</li>
+<li><strong>PII &amp; compliance:</strong> no new PII beyond the existing <code>customerId</code> reference already carried by
+<code>Order Placed</code>.</li>
+<li><strong>Performance / SLA:</strong> none beyond ordinary interactive request latency — no special SLA for this
+demo.</li>
+</ul>
+<h2>Dependencies &amp; Read Models Affected</h2>
+<ul>
+<li><strong>Upstream events this slice relies on:</strong> <code>Order Placed</code> (<code>slices/place-order.md</code>) — establishes
+the order&#39;s existence and owning <code>customerId</code> for authz; <code>Payment Captured</code>
+(<code>slices/record-payment-result.md</code>) — gates INV-CO-1. Both are read by this command handler&#39;s own
+consistency boundary (not projected into a <code>view</code> here — a State Change slice decides against
+prior events directly, the same way <code>Place Order</code> decides against its own prior <code>Order Placed</code>
+for INV-PO-1).</li>
+<li><strong>Downstream read models / slices affected:</strong> <code>Open Orders — cancelled</code>
+(<code>slices/open-orders-cancelled.md</code>), the repeated <code>Open Orders</code> instance this event feeds.</li>
+</ul>
+<h2>Open Questions</h2>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Should a cancel after <code>Payment Captured</code> be a rejection, or should it trigger a refund flow
+automatically? <strong>Resolved:</strong> rejection. A refund/return flow is a distinct, future capability
+(its own slice) — this slice&#39;s job is the small, self-service &quot;I changed my mind before you
+charged me&quot; case only. See INV-CO-1.</li>
+<li><input checked="" disabled="" type="checkbox"> Should a duplicate cancel (same orderId, already cancelled) be a no-op or a rejection?
+<strong>Resolved:</strong> no-op. See INV-CO-2 and its rationale.</li>
+</ul>
+</div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Payments To Request — Meridian Goods — Ordering</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0; font-family: system-ui, sans-serif; line-height: 1.5;
+      background: #fafafa; color: #1f2933;
+    }
+    header {
+      padding: .75rem 1.25rem; background: #1f2933; color: #fff;
+    }
+    header a { color: #fff; text-decoration: none; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #ddd; font-size: 14px; }
+    th { font-weight: 600; background: #f0f2f5; }
+    .status { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: 12px; background: #e4e7eb; }
+    .pattern { font-size: 12px; color: #52606d; }
+    /* Fixed-height frame, not a width-driven one: a slice diagram is often
+       narrow and tall relative to the full model's wide/short diagram, so
+       sizing by width alone would blow a narrow one's height up hugely.
+       object-fit doesn't apply to <object> the way it does <img> (needed here,
+       not <img>, so the SVG's clickable note links keep working) — giving it a
+       DEFINITE width AND height together stretches it non-uniformly, distorting
+       the aspect ratio instead of preserving it. width:auto + height:100% +
+       max-width:100% instead sizes it from its own intrinsic aspect ratio
+       (capped, never overflowing the frame); the flex centers it horizontally. */
+    .diagram-frame {
+      height: 420px; border: 1px solid #ddd; margin: 1rem 0; overflow: hidden; background: #fff;
+      display: flex; align-items: flex-start; justify-content: center;
+    }
+    object.diagram { width: auto; height: 100%; max-width: 100%; }
+    .full-diagram-link { margin: 0 0 1rem; font-size: 13px; }
+    .doc { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #ddd; }
+    .doc h1 { font-size: 1.3rem; }
+    .doc h2 { font-size: 1.05rem; }
+    .no-doc { color: #7b8794; font-style: italic; }
+    code { background: #eee; padding: .05rem .3rem; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <header><a href="../../index.html">Event Model Catalog</a></header>
+  <main>
+    <p><a href="../../index.html">&larr; Meridian Goods — Ordering</a></p>
+    <h1>Payments To Request</h1>
+    <p class="pattern">State View · <span class="status">implemented</span></p>
+    <div class="diagram-frame"><object class="diagram" type="image/svg+xml" data="payments-to-request.svg"></object></div>
+    <p class="full-diagram-link"><a href="../diagram.svg">View full model diagram &rarr;</a></p>
+    <table>
+      <thead><tr><th>Kind</th><th>Name</th><th>Detail</th></tr></thead>
+      <tbody>
+      <tr id="payments-to-request/view.payments-to-request">
+        <td>view</td>
+        <td>Payments To Request</td>
+        <td>from Order Placed &middot; { orderId: UUID, totalCents: Int, placedAt: DateTime }</td>
+      </tr>
+      </tbody>
+    </table>
+    <div class="doc"><h1>Slice: Payments To Request</h1>
+<p><img src="./payments-to-request.svg" alt="Diagram"></p>
+<h2>Intent</h2>
+<p>Every placed order needs a payment requested from the provider before it can be fulfilled. This
+slice is the Request Payment automation&#39;s to-do list: a queryable projection of orders that have
+been placed but not yet had a payment request issued, so the <code>Payment Requester</code> processor (in the
+next slice, <code>Request Payment</code>) knows exactly what work remains without re-scanning the full order
+history.</p>
+<h2>Trigger &amp; Actor</h2>
+<p>No user-facing trigger — this is a pure projection. It is rebuilt by folding <code>Order Placed</code>
+events as they arrive. Its &quot;actor&quot; is the <code>Payment Requester</code> processor, which reads it in the
+<code>Request Payment</code> slice via <code>from &quot;Payments To Request&quot;</code>.</p>
+<h2>Read Model / View</h2>
+<ul>
+<li><strong>View:</strong> <code>Payments To Request</code> built from events: <code>Order Placed</code></li>
+<li><strong>Consumed by:</strong> processor <code>Payment Requester</code> (slice <code>Request Payment</code>)</li>
+<li><strong>Freshness / consistency expectation:</strong> eventual — the projection lags <code>Order Placed</code> by
+normal event-processing latency; the automation tolerates this because Request Payment&#39;s own
+exactly-once invariant (see <code>slices/request-payment.md</code>, <code>INV-RP-1</code>) is enforced independently
+of how fast this queue catches up.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Immutable Fact?</th>
+<th>Source / Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>orderId</td>
+<td>UUID</td>
+<td>yes</td>
+<td><code>Order Placed.orderId</code> — the fold key; one to-do entry per order</td>
+</tr>
+<tr>
+<td>totalCents</td>
+<td>Int</td>
+<td>yes</td>
+<td><code>Order Placed.totalCents</code> — carried through unchanged so the automation can size the payment request without a second lookup</td>
+</tr>
+<tr>
+<td>placedAt</td>
+<td>DateTime</td>
+<td>yes</td>
+<td><code>Order Placed.placedAt</code> — carried through for staleness/SLA monitoring on the queue itself</td>
+</tr>
+</tbody></table>
+<h2>Invariants / Business Rules</h2>
+<ul>
+<li><strong>INV-PTR-1 (idempotent fold):</strong> Folding the same <code>Order Placed</code> event more than once (e.g. a
+projection rebuild, or an at-least-once delivery redelivering the event) must never produce more
+than one queue entry for a given <code>orderId</code>. The fold is an upsert keyed on <code>orderId</code>, not an
+append — replay-safety here is what makes <code>em conform</code>-style rebuilds and redelivery both safe.</li>
+<li><strong>INV-PTR-2 (removal on request):</strong> An order is removed from <code>Payments To Request</code> once a
+<code>Payment Requested</code> event exists for its <code>orderId</code> (recorded by the <code>Request Payment</code> slice that
+watches this queue). This is the invariant that keeps the to-do list draining: without it, the
+<code>Payment Requester</code> processor would re-request payment for the same order on every poll — the
+classic &quot;to-do list that never drains&quot; bug. The removal is driven by <code>Payment Requested</code>, not by
+<code>Payment Captured</code>, because the queue&#39;s job is &quot;has a request been <em>issued</em>&quot;, not &quot;has it been
+<em>paid</em>&quot; — a slow or failed provider response must not cause a duplicate request (see
+<code>slices/request-payment.md</code>, <code>INV-RP-1</code>).</li>
+</ul>
+<h2>Scenarios (Given / When / Then)</h2>
+<ul>
+<li><strong>Happy path</strong> — Given no prior events for order <code>O1</code>, When <code>Order Placed</code> (orderId <code>O1</code>,
+totalCents <code>5000</code>, placedAt <code>2026-08-20T10:00:00Z</code>) is recorded, Then <code>Payments To Request</code>
+gains one entry for <code>O1</code> (totalCents <code>5000</code>).</li>
+<li><strong>Idempotent fold (INV-PTR-1)</strong> — Given <code>Order Placed</code> for <code>O1</code> has already been folded once,
+When the same <code>Order Placed</code> event is folded again (rebuild or redelivery), Then
+<code>Payments To Request</code> still holds exactly one entry for <code>O1</code>, not two.</li>
+<li><strong>Drains on request (INV-PTR-2)</strong> — Given <code>O1</code> is present in <code>Payments To Request</code>, When
+<code>Payment Requested</code> for <code>O1</code> is recorded (in the <code>Request Payment</code> slice), Then <code>O1</code> is removed
+from <code>Payments To Request</code> and the <code>Payment Requester</code> processor never re-selects it.</li>
+<li><strong>Untouched by capture</strong> — Given <code>O1</code> has already been removed from <code>Payments To Request</code> by its
+<code>Payment Requested</code> event, When <code>Payment Captured</code> for <code>O1</code> is later recorded, Then
+<code>Payments To Request</code> is unaffected (it isn&#39;t a source for this view) — capture outcomes are the
+concern of <code>Order Status</code> and <code>Open Orders</code>, not this to-do list.</li>
+</ul>
+<h2>Alternate &amp; Error Flows</h2>
+<ul>
+<li><strong>Rebuild from scratch:</strong> replaying the full <code>Order Placed</code> history against an empty projection
+must converge to the same state as incremental folding (INV-PTR-1 covers this).</li>
+<li><strong>Out-of-order delivery:</strong> if <code>Payment Requested</code> for an order is somehow processed before that
+order&#39;s <code>Order Placed</code> fold completes, the upsert-then-remove sequencing must still leave the
+order absent from the queue once both events have been folded, not resurrected.</li>
+</ul>
+<h2>Non-Functional Requirements</h2>
+<ul>
+<li><strong>Security / authz:</strong> none — internal-only projection, not exposed via any <code>ui</code>/API in this
+model.</li>
+<li><strong>PII &amp; compliance:</strong> none beyond what <code>Order Placed</code> already carries (order total, not
+customer-identifying data at this projection).</li>
+<li><strong>Performance / SLA:</strong> eventual; the <code>Payment Requester</code> automation&#39;s own responsiveness
+budget (see <code>slices/request-payment.md</code>) is what bounds acceptable staleness here, not a
+freshness target of this view in isolation.</li>
+</ul>
+<h2>Dependencies &amp; Read Models Affected</h2>
+<ul>
+<li><strong>Upstream events this slice relies on:</strong> <code>Order Placed</code> (owned by the <code>Place Order</code> slice).</li>
+<li><strong>Downstream read models / slices affected:</strong> <code>Request Payment</code> (the <code>Payment Requester</code>
+processor reads this view to decide what to act on).</li>
+</ul>
+<h2>Open Questions</h2>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Should cancelled/refunded orders be excluded from this queue? Resolved: out of scope for
+this model revision — Meridian Goods has no cancellation slice yet; revisit if one is added.</li>
+<li><input checked="" disabled="" type="checkbox"> Does the queue need a max-age/alerting concern for orders stuck without a payment request?
+Resolved: not modeled here — an operational concern for the <code>Request Payment</code> implementation
+(e.g. a metric/alert on queue age), not a change to this view&#39;s shape.</li>
+</ul>
+</div>
+  </main>
+</body>
+</html>

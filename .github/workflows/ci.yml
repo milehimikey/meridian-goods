@@ -1,3 +1,7 @@
+# Gradle build only. The advisory `em validate` job that used to live here has been superseded
+# by the em-ci.yml workflow (`em ci init`, MIL-166), which gates PRs on em validate, slice index
+# freshness, coverage, ledger, skill drift, and glossary consistency — see em-ci.yml and
+# em-conform.yml for the em-side checks.
 name: CI
 
 on:
@@ -19,15 +23,3 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
       - name: ./gradlew build
         run: ./gradlew build --no-daemon
-
-  em-validate:
-    name: em validate (advisory)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-      - name: em validate meridian-goods.em
-        run: npx --yes @milehimikey/em@1.8.0 validate meridian-goods.em

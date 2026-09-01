@@ -28,29 +28,38 @@ No user action triggers this slice directly — it's a projection that updates a
   by ordinary projector latency; no synchronous read of the write side.
 
 ## Invariants / Business Rules
-- **INV-OS-1:** The fold is idempotent. Re-projecting the same source event (redelivery, replay,
-  projector restart) never creates a duplicate row or double-applies a field — each order's
-  status row is keyed by `orderId` and appears exactly once.
+- **INV-OS-1:** The fold is idempotent.
+  - Re-projecting the same source event (redelivery, replay, projector restart) never creates a
+    duplicate row or double-applies a field — each order's status row is keyed by `orderId` and
+    appears exactly once.
 - **INV-OS-2:** "Status" is never a separately stored or inferred field — it is derived purely
   from which timestamp fields are actually populated (`placedAt` only ⇒ placed;
-  `+ requestedAt` ⇒ payment requested; `+ capturedAt` ⇒ paid). There is no independent `status`
-  enum that could drift out of sync with the underlying event facts, and no field is ever
-  populated by inference, elapsed time, or assumption about what "should" have happened —
-  only by the corresponding event actually landing.
+  `+ requestedAt` ⇒ payment requested; `+ capturedAt` ⇒ paid).
+  - There is no independent `status` enum that could drift out of sync with the underlying
+    event facts, and no field is ever populated by inference, elapsed time, or assumption about
+    what "should" have happened — only by the corresponding event actually landing.
 
 ## Scenarios (Given / When / Then)
-- **`Order Placed` lands** — Given no prior row for this `orderId`, When `Order Placed` is
-  projected, Then a new `Order Status` row appears with `orderId` and `placedAt` populated,
-  `requestedAt`/`capturedAt` absent, reading as "placed" (INV-OS-2).
-- **`Payment Requested` lands** — Given an existing row with `placedAt` set, When
-  `Payment Requested` is projected, Then that row is updated in place with `requestedAt`
-  populated, reading as "payment requested" — no new row is created (INV-OS-1).
-- **`Payment Captured` lands** — Given an existing row with `placedAt` and `requestedAt` set,
-  When `Payment Captured` is projected, Then that row is updated in place with `capturedAt`
-  populated, reading as "paid" — no new row is created (INV-OS-1).
-- **Redelivered event (INV-OS-1)** — Given a row already reflects a given source event, When
-  that same event is redelivered to the projector, Then the row is unchanged — no duplicate row,
-  no field double-applied, and the derived status (INV-OS-2) doesn't change either.
+- **`Order Placed` lands**
+  - **Given:** no prior row for this `orderId`
+  - **When:** `Order Placed` is projected
+  - **Then:** a new `Order Status` row appears with `orderId` and `placedAt` populated,
+    `requestedAt`/`capturedAt` absent, reading as "placed" (INV-OS-2).
+- **`Payment Requested` lands**
+  - **Given:** an existing row with `placedAt` set
+  - **When:** `Payment Requested` is projected
+  - **Then:** that row is updated in place with `requestedAt` populated, reading as "payment
+    requested" — no new row is created (INV-OS-1).
+- **`Payment Captured` lands**
+  - **Given:** an existing row with `placedAt` and `requestedAt` set
+  - **When:** `Payment Captured` is projected
+  - **Then:** that row is updated in place with `capturedAt` populated, reading as "paid" — no
+    new row is created (INV-OS-1).
+- **Redelivered event (INV-OS-1)**
+  - **Given:** a row already reflects a given source event
+  - **When:** that same event is redelivered to the projector
+  - **Then:** the row is unchanged — no duplicate row, no field double-applied, and the
+    derived status (INV-OS-2) doesn't change either.
 
 ## Alternate & Error Flows
 - **No payment yet:** an order can sit indefinitely at "placed" (`requestedAt`/`capturedAt` both
