@@ -5,10 +5,6 @@
 # the state file's `Last conformance:` marker only advances when a human ratifies the run's
 # outcome locally and commits that update. Resist wiring this to every push; cadence, not
 # trigger, is the intended shape (docs/ci.md).
-#
-# PINNED (em 1.9.0 validation, meridian-goods PR): `npm i -g @milehimikey/em@^1.9.0` below is
-# pinned ahead of that version's npm release; this job will fail to install until em 1.9.0
-# ships. Expected during the validation window, not a bug in this preset.
 name: model-conformance
 
 on:
@@ -35,7 +31,7 @@ jobs:
 
       - name: Run conform phase
         run: |
-          npm i -g @milehimikey/em@^1.9.0 @anthropic-ai/claude-code
+          npm i -g @milehimikey/em@1.10.0 @anthropic-ai/claude-code
           em skill install --force
           claude -p "/event-modeling conform" \
             --allowedTools "Bash(em:*),Bash(git:*),Read,Grep,Glob,Write,Edit"

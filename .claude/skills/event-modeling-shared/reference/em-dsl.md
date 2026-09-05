@@ -111,8 +111,43 @@ em status <files> -o, --out <path>                            # write output to 
 em freshness <file>                                           # standalone freshness signal for one model's conformance record (MIL-164): "last conformed <rev> — N commits and M slice-PRs behind HEAD", computed from the same conform-scope machinery `em status`'s conformance clause uses — for when you want just this fact, no full state-of-the-system rollup (see docs/cli.md)
 em freshness <file> --repo <path>                             # git repo to compute behind-HEAD in (default: the model's own directory)
 em freshness <file> --json                                    # print a JSON document instead of the text line
+em query consumers <files>                                    # views/reactions consuming an event, plus their slices
+em query consumers <files> --event <ref-or-name>              # the event's export ref or display name
+em query consumers <files> --json                             # print a JSON document instead of the text report
+em query producers <files>                                    # commands producing an event, plus their slices and ui triggers
+em query producers <files> --event <ref-or-name>              # the event's export ref or display name
+em query producers <files> --json                             # print a JSON document instead of the text report
+em query downstream <files>                                   # transitive closure along legal edges from an element — impact analysis
+em query downstream <files> --of <ref-or-name>                # the starting element's export ref or display name
+em query downstream <files> --depth <n>                       # limit traversal to n hops (default: unlimited)
+em query downstream <files> --json                            # print a JSON document instead of the text report
+em query upstream <files>                                     # transitive closure against legal-edge direction from an element
+em query upstream <files> --of <ref-or-name>                  # the starting element's export ref or display name
+em query upstream <files> --depth <n>                         # limit traversal to n hops (default: unlimited)
+em query upstream <files> --json                              # print a JSON document instead of the text report
+em query slices <files>                                       # filtered slice list — pattern/status/context/persona/tag filters AND-combine
+em query slices <files> --pattern <p>                         # state-change | state-view | automation | translation | unclassified
+em query slices <files> --status <s>                          # the slice's joined doc status (draft, reviewed, ready-to-implement, implemented, ...)
+em query slices <files> --context <c>                         # match a slice with an event in this @Context
+em query slices <files> --persona <p>                         # match a slice with a ui in this @Persona
+em query slices <files> --tag <t>                             # match a slice with an event carrying this tag key
+em query slices <files> --json                                # print a JSON document instead of the text report
+em query invariant <files>                                    # declaring slice + doc facts for one INV-* id, and (with --tests) its test citations
+em query invariant <files> --id <inv-id>                      # the INV-* id to look up
+em query invariant <files> --tests <dir>                      # directory to scan for test files citing this id
+em query invariant <files> --json                             # print a JSON document instead of the text report
+em query field <files>                                        # one field's facts on an element — type, tag/assigned markers, renamed-from chain
+em query field <files> --of <element-ref>                     # the element's export ref or display name
+em query field <files> --name <field>                         # the field's name
+em query field <files> --json                                 # print a JSON document instead of the text report
+em query path <files>                                         # shortest path between two elements through the six legal connection types
+em query path <files> --from <ref-or-name>                    # the starting element's export ref or display name
+em query path <files> --to <ref-or-name>                      # the ending element's export ref or display name
+em query path <files> --json                                  # print a JSON document instead of the text report
+em system <manifest>                                          # verify a seam manifest (system.yaml) against its models' exports — every `public` event/view bound to a reaction in another model, the cross-model half of "both ends of a flow" (MIL-194, see docs/cli.md)
+em system <manifest> --json                                   # print a JSON document instead of the text report (see docs/cli.md)
 em contract                                                   # print the packaged implementation contract (reference/implement.md) to stdout — the agent-neutral discovery path for any agent that can run a shell, not just Claude Code (MIL-129); see docs/cli.md
-em mcp                                                        # start an MCP (Model Context Protocol) server over stdio, exposing validate/slice_ready/list_markers/export_model/export_slice/coverage/contract as tools (MIL-21) — a structured, agent-facing alternative to shelling out to `em`; see docs/mcp.md. Equivalent to running the `em-mcp` bin directly
+em mcp                                                        # start an MCP (Model Context Protocol) server over stdio (MIL-21) — a structured, agent-facing alternative to shelling out to `em`; see docs/mcp.md for the full, current tool table (the list changes as commands gain MCP parity, so it's not repeated here — MIL-187). Equivalent to running the `em-mcp` bin directly
 em skill install                                              # copy the event-modeling skill bundle into .claude/skills/ (event-modeling, event-modeling-discover/-design/-implement/-conform/-review, event-modeling-shared)
 em skill install -f, --force                                  # overwrite an existing installation
 em skill install --no-agents-md                               # skip writing/updating the AGENTS.md agent-contract section (on by default, MIL-129)
@@ -561,11 +596,13 @@ not the prose above has caught up yet. `--slice-ready <key>`-only codes are excl
 | `both-ends-of-a-flow/view-unconsumed` | warning | Read model with no consumer | Add a `ui` or reaction that consumes it, or drop this instance. |
 | `connection-legality/illegal-pair` | error | Illegal connection | Only ui→command→event→view→ui and view→reaction→command are legal — the message names the missing step. |
 | `cross-model-slice-doc-collision` | warning | Colliding slice doc path across models | Give each model its own directory (see docs/cli.md, "Multi-model projects"). |
+| `dangling-public-event` | warning | Public event/view no seam consumes | Declare the seam that reads it, or drop `public` if nothing outside the model does. |
 | `doc-model-element-not-in-doc` | warning | Model element the doc doesn't mention | Add the matching marker to the doc, or remove the element from the model. |
 | `doc-model-element-not-in-model` | warning | Doc names an element the model doesn't have | Add the element to the model, or fix/remove it in the doc. |
 | `doc-model-field-mismatch` | warning | Doc/model field mismatch | Reconcile the field table with the model's fields — names and types. |
 | `doc-model-pattern-mismatch` | warning | Doc/model pattern mismatch | Fix the doc's `pattern:` frontmatter to match the model, or restructure the slice to match the doc. |
 | `duplicate-element-ref` | warning | Duplicate element ref | Rename the element so its export ref is unique. |
+| `duplicate-model-key` | warning | Duplicate model key | Give each model a unique `model "Name"` so its key (and every cross-model ref) is stable. |
 | `duplicate-name` | warning | Duplicate name | Rename one of the duplicates. |
 | `duplicate-slice-name` | warning | Duplicate slice name | Rename the slice so its export key is unique. |
 | `duplicate-type-name` | warning | Duplicate type name | Rename one of the duplicate `type` declarations. |
@@ -587,11 +624,19 @@ not the prose above has caught up yet. `--slice-ready <key>`-only codes are excl
 | `orphaned-slice-doc` | warning | Orphaned slice doc | Rename it to a current slice's key, add `covers:` (plus a `note` binding) to attach it to a live slice, or delete it. |
 | `reaction-from-future-view` | error | Backward timeline (reaction reads a future view) | Declare the view in or before the reaction's slice. |
 | `reaction-from-unresolved` | error | Unknown read-model source | Project the event into a view first, or fix the `from` reference. |
+| `seam-consumer-not-reaction` | error | Seam consumer is not a reaction | Point `to` at a translation/automation element (or a slice containing exactly one). |
+| `seam-duplicate` | warning | Duplicate seam | Remove the repeated `from`/`to` pair. |
+| `seam-endpoint-unresolved` | error | Seam endpoint does not resolve | Fix the ref to an element the named model actually exports (`em export` lists every ref), or re-declare the seam after a rename. |
+| `seam-source-not-public` | error | Seam source is not `public` | Mark the event/view `public` in its model, or point the seam at the element that is. |
+| `system-manifest-invalid` | error | Seam manifest invalid | Fix the manifest: required keys, `systemSchemaVersion: "1.0"`, a readable `source` per model, and only declared model keys in seam refs. |
+| `system-model-key-mismatch` | error | Manifest model key differs from the export's `model.key` | Rename the manifest's `models:` key to the computed key the message prints. |
 | `tag-composite-unknown-field` | error | Composite tag names an unknown field | Fix the field name, or add it to the event's fields. |
 | `tag-duplicate-key` | error | Duplicate tag key | Rename one of the tags so every key on the event is unique. |
 | `translation-name-collision` | warning | Translation name reused for different producers | Use a distinct name per producer to avoid confusion. |
 | `type-cycle` | error | Cyclic type reference | Break the cycle, or route the self/mutual reference through an array. |
 | `ui-shares-slice-with-automation` | warning | `ui` shares slice with a reaction | Move the `ui` to the slice that displays the read model, or drop it. |
+| `unbound-translation` | warning | Externally-fed reaction no seam feeds | Declare the seam whose `to` is this reaction, or give it an in-model `from`. |
+| `undeclared-seam-candidate` | warning | Looks connected across models, no seam declared | Declare the seam, or rename one side so the name match stops looking like a link. |
 | `view-again-without-earlier` | error | `again` without an earlier declaration | Declare the view plainly the first time it appears. |
 | `view-from-future-event` | error | Backward timeline (view reads a future event) | Move the source to a later `view X again` instance. |
 | `view-from-unresolved` | error | Unknown event source | Fix the `from` reference to name an existing event. |
