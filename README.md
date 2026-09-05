@@ -55,7 +55,7 @@ the methodology and its narrative live in the Slicewright repo linked above.
 Modeling commands use pinned versions:
 
 ```bash
-npx -y @milehimikey/em@1.8.0 validate meridian-goods.em
+npx -y @milehimikey/em@1.10.0 validate meridian-goods.em
 npx -y em-sdd-bridge@0.4.0 <slice-key> --symlink
 ```
 

@@ -7,12 +7,6 @@
 # the PR the same way any other required check does; the status-badge job only ever publishes.
 # `em ci init meridian-goods.em --check` reports drift in the managed block — advisory unless you wire
 # it into a gate yourself (docs/ci.md).
-#
-# PINNED (em 1.9.0 validation, meridian-goods PR): every `npx @milehimikey/em` call below is
-# pinned to `@^1.9.0`, which is not yet published to npm at the time this workflow was generated
-# (generated against a local em 1.9.0-pre build). These gates will fail — package not found —
-# until em 1.9.0 actually ships; that's expected, not a bug in this preset. Once it ships, either
-# leave the pin (it'll resolve normally) or re-run `em ci init` to return to the unpinned default.
 name: em ci
 
 on:
@@ -50,8 +44,8 @@ jobs:
           status=0
           for f in $changed; do
             echo "::group::em validate $f"
-            npx @milehimikey/em@^1.9.0 validate "$f" || status=1
-            npx @milehimikey/em@^1.9.0 validate "$f" --list-issues
+            npx @milehimikey/em@1.10.0 validate "$f" || status=1
+            npx @milehimikey/em@1.10.0 validate "$f" --list-issues
             echo "::endgroup::"
           done
           exit $status
@@ -66,7 +60,7 @@ jobs:
         with:
           node-version: 20
       - name: Check README Slices table is current
-        run: npx @milehimikey/em@^1.9.0 slice index "meridian-goods.em" --check
+        run: npx @milehimikey/em@1.10.0 slice index "meridian-goods.em" --check
 
   coverage:
     name: "em coverage --strict (invariant citations)"
@@ -78,7 +72,7 @@ jobs:
         with:
           node-version: 20
       - name: Check invariant test coverage
-        run: npx @milehimikey/em@^1.9.0 coverage "meridian-goods.em" --tests "src/test" --strict
+        run: npx @milehimikey/em@1.10.0 coverage "meridian-goods.em" --tests "src/test" --strict
 
   ledger:
     name: em ledger (slice doc version/content agreement)
@@ -92,7 +86,7 @@ jobs:
         with:
           node-version: 20
       - name: Check slice doc version/content agreement
-        run: npx @milehimikey/em@^1.9.0 ledger "meridian-goods.em" --from "${{ github.event.pull_request.base.sha }}"
+        run: npx @milehimikey/em@1.10.0 ledger "meridian-goods.em" --from "${{ github.event.pull_request.base.sha }}"
 
   skill-check:
     name: em skill check (vendored skill drift)
@@ -106,7 +100,7 @@ jobs:
       - name: Check vendored skill matches installed em
         run: |
           if [ -d .claude/skills/event-modeling ]; then
-            npx @milehimikey/em@^1.9.0 skill check
+            npx @milehimikey/em@1.10.0 skill check
           else
             echo "no vendored skill at .claude/skills/event-modeling — skipping (run `em skill install` to opt in)"
           fi
@@ -121,7 +115,7 @@ jobs:
         with:
           node-version: 20
       - name: Check glossary consistency across models
-        run: npx @milehimikey/em@^1.9.0 glossary $(git ls-files '*.em') --fail-on-conflicts
+        run: npx @milehimikey/em@1.10.0 glossary $(git ls-files '*.em') --fail-on-conflicts
 
   status-badge:
     name: rebuild status badge (advisory — publish only, never a gate)
@@ -135,7 +129,7 @@ jobs:
         with:
           node-version: 20
       - name: Rebuild status badge
-        run: npx @milehimikey/em@^1.9.0 status "meridian-goods.em" --tests "src/test" --badge -o status-badge.svg
+        run: npx @milehimikey/em@1.10.0 status "meridian-goods.em" --tests "src/test" --badge -o status-badge.svg
       - name: Commit badge if changed
         run: |
           if git diff --quiet -- status-badge.svg; then
