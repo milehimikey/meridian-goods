@@ -44,11 +44,29 @@ jobs:
           status=0
           for f in $changed; do
             echo "::group::em validate $f"
-            npx @milehimikey/em@1.10.0 validate "$f" || status=1
-            npx @milehimikey/em@1.10.0 validate "$f" --list-issues
+            npx @milehimikey/em@1.18.0 validate "$f" || status=1
+            npx @milehimikey/em@1.18.0 validate "$f" --list-issues
             echo "::endgroup::"
           done
           exit $status
+
+  api-check:
+    name: "em api check (contract current; additive/breaking annotation)"
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check the generated contract is current
+        # Fails only when contracts/<model key>.tsp is missing or stale (run em api generate).
+        # The additive/breaking lines are annotation for the reviewer, never a gate (MIL-237).
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          npx @milehimikey/em@1.18.0 api check "meridian-goods.em" --base "$base"
 
   slice-index:
     name: "em slice index --check (README table drift)"
@@ -60,7 +78,7 @@ jobs:
         with:
           node-version: 20
       - name: Check README Slices table is current
-        run: npx @milehimikey/em@1.10.0 slice index "meridian-goods.em" --check
+        run: npx @milehimikey/em@1.18.0 slice index "meridian-goods.em" --check
 
   coverage:
     name: "em coverage --strict (invariant citations)"
@@ -72,7 +90,10 @@ jobs:
         with:
           node-version: 20
       - name: Check invariant test coverage
-        run: npx @milehimikey/em@1.10.0 coverage "meridian-goods.em" --tests "src/test" --strict
+        # Counts INV-* IDs in `implemented` slice docs only (MIL-207) - a ready-to-implement
+        # doc has nothing yet to cite it, so this job is green on a fresh scaffold and on a
+        # doc-only ratification PR. Pass --include-ready for the older, forward-looking report.
+        run: npx @milehimikey/em@1.18.0 coverage "meridian-goods.em" --tests "src/test" --strict
 
   ledger:
     name: em ledger (slice doc version/content agreement)
@@ -86,10 +107,10 @@ jobs:
         with:
           node-version: 20
       - name: Check slice doc version/content agreement
-        run: npx @milehimikey/em@1.10.0 ledger "meridian-goods.em" --from "${{ github.event.pull_request.base.sha }}"
+        run: npx @milehimikey/em@1.18.0 ledger "meridian-goods.em" --from "${{ github.event.pull_request.base.sha }}"
 
   skill-check:
-    name: em skill check (vendored skill drift)
+    name: em skill check (vendored skill / plugin drift)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -97,13 +118,39 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Check vendored skill matches installed em
+      - name: Register the pinned em plugin
         run: |
-          if [ -d .claude/skills/event-modeling ]; then
-            npx @milehimikey/em@1.10.0 skill check
+          if grep -Eq '"em-[0-9]+-[0-9]+-[0-9]+"' .claude/settings.json 2>/dev/null; then
+            npm i -g @anthropic-ai/claude-code
+            claude plugin marketplace add milehimikey/em@v1.18.0 --scope project
+            claude plugin install em@em-1-18-0 --scope project
           else
-            echo "no vendored skill at .claude/skills/event-modeling — skipping (run `em skill install` to opt in)"
+            echo "no em plugin pinned in .claude/settings.json - nothing to register"
           fi
+      - name: Check the em skills match installed em
+        run: |
+          if [ -d .claude/skills/event-modeling ] || grep -Eq '"em-[0-9]+-[0-9]+-[0-9]+"' .claude/settings.json 2>/dev/null; then
+            npx @milehimikey/em@1.18.0 skill check --ci
+          else
+            echo "no vendored skill and no em plugin pin - skipping (install the em plugin to opt in, docs/ai-workflow.md)"
+          fi
+
+  upgrade-check:
+    name: "em upgrade --check (advisory - hard incompatibilities only, MIL-219)"
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check for hard upgrade incompatibilities
+        # Advisory: exits non-zero ONLY on a hard incompatibility (an unparseable state file, an
+        # old .em shape em migrate itself refuses) - never on the ordinary "some mechanical
+        # steps are applicable" case. See docs/upgrading.md.
+        run: npx @milehimikey/em@1.18.0 upgrade "meridian-goods.em" --check
 
   glossary:
     name: "em glossary --fail-on-conflicts (cross-model vocabulary)"
@@ -115,10 +162,12 @@ jobs:
         with:
           node-version: 20
       - name: Check glossary consistency across models
-        run: npx @milehimikey/em@1.10.0 glossary $(git ls-files '*.em') --fail-on-conflicts
+        run: |
+          mapfile -t models < <(git ls-files '*.em')
+          npx @milehimikey/em@1.18.0 glossary "${models[@]}" --fail-on-conflicts
 
   status-badge:
-    name: rebuild status badge (advisory — publish only, never a gate)
+    name: rebuild status badge (advisory - publish only, never a gate)
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -129,7 +178,7 @@ jobs:
         with:
           node-version: 20
       - name: Rebuild status badge
-        run: npx @milehimikey/em@1.10.0 status "meridian-goods.em" --tests "src/test" --badge -o status-badge.svg
+        run: npx @milehimikey/em@1.18.0 status "meridian-goods.em" --tests "src/test" --badge -o status-badge.svg
       - name: Commit badge if changed
         run: |
           if git diff --quiet -- status-badge.svg; then

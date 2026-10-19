@@ -27,23 +27,23 @@ jobs:
           node-version: 20
 
       - name: Note reports already present
-        run: ls "$MODEL_DIR"/conformance/*-report.md 2>/dev/null | sort > /tmp/reports-before
+        run: find "$MODEL_DIR/conformance" -maxdepth 1 -name '*-report.md' 2>/dev/null | sort > /tmp/reports-before
 
       - name: Run conform phase
         run: |
-          npm i -g @milehimikey/em@1.10.0 @anthropic-ai/claude-code
-          em skill install --force
-          claude -p "/event-modeling conform" \
+          npm i -g @milehimikey/em@1.18.0 @anthropic-ai/claude-code
+          claude plugin marketplace add milehimikey/em@v1.18.0 --scope project && claude plugin install em@em-1-18-0 --scope project
+          claude -p "/em:conform" \
             --allowedTools "Bash(em:*),Bash(git:*),Read,Grep,Glob,Write,Edit"
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Post report
         run: |
-          ls "$MODEL_DIR"/conformance/*-report.md 2>/dev/null | sort > /tmp/reports-after
+          find "$MODEL_DIR/conformance" -maxdepth 1 -name '*-report.md' 2>/dev/null | sort > /tmp/reports-after
           report=$(comm -13 /tmp/reports-before /tmp/reports-after | tail -1)
           if [ -z "$report" ]; then
-            echo "the run produced no new report — nothing to post"
+            echo "the run produced no new report - nothing to post"
             exit 0
           fi
           gh issue create --title "Model conformance report $(date +%F)" \
