@@ -1,14 +1,14 @@
 {
   "extraKnownMarketplaces": {
-    "em-1-18-0": {
+    "em-1-18-1": {
       "source": {
         "source": "github",
         "repo": "milehimikey/em",
-        "ref": "v1.18.0"
+        "ref": "v1.18.1"
       }
     }
   },
   "enabledPlugins": {
-    "em@em-1-18-0": true
+    "em@em-1-18-1": true
   }
 }
